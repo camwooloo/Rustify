@@ -67,6 +67,26 @@ impl Daemon {
         self.events.subscribe()
     }
 
+    /// True once Spotify has dropped the session underneath us.
+    ///
+    /// librespot marks the session invalid rather than reconnecting itself —
+    /// its own client watches this and rebuilds. Nothing did that here, so a
+    /// dropped session simply ended playback until the player was restarted.
+    pub async fn session_invalid(&self) -> bool {
+        match self.engine.read().await.as_ref() {
+            Some(engine) => engine.session().is_invalid(),
+            None => false,
+        }
+    }
+
+    /// Rebuild the session and the Connect endpoint after a drop.
+    pub async fn reconnect(self: &Arc<Self>) -> Result<()> {
+        let token = auth::current_token(&Profile::streaming())
+            .await
+            .ok_or_else(|| anyhow!("no usable credentials to reconnect with"))?;
+        self.boot(&token).await
+    }
+
     pub fn ui_visible(&self) -> bool {
         self.ui_visible.load(std::sync::atomic::Ordering::Relaxed)
     }

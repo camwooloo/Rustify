@@ -135,6 +135,7 @@ async fn main() -> Result<()> {
 
     tokio::spawn(tick_position(daemon.clone()));
     tokio::spawn(poll_remote(daemon.clone()));
+    tokio::spawn(watch_session(daemon.clone()));
 
     server::serve(daemon, listener).await
 }
@@ -201,6 +202,46 @@ async fn poll_remote(daemon: std::sync::Arc<Daemon>) {
             continue;
         }
         daemon.poll_remote().await;
+    }
+}
+
+/// Rebuild the Spotify session when it dies.
+///
+/// Sessions do not last indefinitely: Spotify drops idle ones, access points
+/// rotate, and networks blink. librespot reports this by marking the session
+/// invalid and waits for the embedder to act — its own client rebuilds the
+/// session and Spirc in a loop. Without that, playback stopped after a few
+/// hours and stayed stopped until the player was restarted by hand.
+async fn watch_session(daemon: std::sync::Arc<Daemon>) {
+    const EVERY: Duration = Duration::from_secs(20);
+
+    let mut interval = tokio::time::interval(EVERY);
+    interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+
+    // Grows only while reconnection keeps failing, so a Spotify outage is not
+    // met with a request every twenty seconds.
+    let mut backoff: u64 = 1;
+
+    loop {
+        interval.tick().await;
+
+        if !daemon.session_invalid().await {
+            backoff = 1;
+            continue;
+        }
+
+        warn!("the Spotify session dropped; reconnecting");
+        match daemon.reconnect().await {
+            Ok(()) => {
+                info!("session reconnected");
+                backoff = 1;
+            }
+            Err(e) => {
+                warn!("could not reconnect: {e:#}");
+                tokio::time::sleep(Duration::from_secs(5 * backoff)).await;
+                backoff = (backoff * 2).min(12);
+            }
+        }
     }
 }
 

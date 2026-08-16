@@ -555,6 +555,13 @@ function highlightLyrics() {
  *  show, and the only one expanded by default in Settings. */
 const CHANGELOG = [
   {
+    v: "0.3.5",
+    d: "16 Aug 2026",
+    notes: [
+      "Rustify now reconnects to Spotify by itself when the connection drops — previously music simply stopped after a few hours and stayed stopped until you restarted the player",
+    ],
+  },
+  {
     v: "0.3.4",
     d: "16 Aug 2026",
     notes: [
