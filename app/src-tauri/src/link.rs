@@ -129,7 +129,16 @@ pub async fn run(link: Arc<DaemonLink>, app: AppHandle) {
                     tried_spawn = true;
                     match spawn_daemon() {
                         Ok(()) => info!("started the daemon"),
-                        Err(e) => warn!("could not start the daemon: {e:#}"),
+                        Err(e) => {
+                            // A missing binary will not fix itself, and
+                            // retrying forever would leave the UI saying
+                            // "connecting" indefinitely. Report it instead.
+                            warn!("could not start the daemon: {e:#}");
+                            let _ = app.emit(
+                                STATUS_CHANNEL,
+                                json!({ "connected": false, "fatal": format!("{e:#}") }),
+                            );
+                        }
                     }
                 } else {
                     debug!("daemon not reachable: {e}");
@@ -236,7 +245,7 @@ fn spawn_daemon() -> Result<()> {
 
     if !daemon.exists() {
         return Err(anyhow!(
-            "daemon binary not found at {} — build it with `cargo build --release`",
+            "the player component (rustifyd.exe) is missing from {} — an              update may have failed to replace it. Reinstall Rustify, making              sure it is not running first.",
             daemon.display()
         ));
     }

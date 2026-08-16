@@ -553,6 +553,15 @@ function highlightLyrics() {
  *  show, and the only one expanded by default in Settings. */
 const CHANGELOG = [
   {
+    v: "0.2.5",
+    d: "16 Aug 2026",
+    notes: [
+      "Updating no longer breaks the player: the installer now stops it first, which is why the previous update reported an error about rustifyd.exe and left Rustify unable to play",
+      "Update checks now happen even when the player cannot start — previously the people an update would fix were the ones never offered it",
+      "A missing player is reported plainly instead of pretending it will reconnect",
+    ],
+  },
+  {
     v: "0.2.4",
     d: "16 Aug 2026",
     notes: [
@@ -2152,6 +2161,8 @@ const eventsReady = listen("daemon-event", ({ payload }) => {
 
 const statusReady = listen("daemon-status", ({ payload }) => {
   connected = !!payload.connected;
+  if (payload.fatal) fatalReason = payload.fatal;
+  if (connected) fatalReason = null;
   setConnecting(!connected);
 
   if (connected) {
@@ -2172,6 +2183,9 @@ const statusReady = listen("daemon-status", ({ payload }) => {
  * so it reads as progress rather than failure.
  */
 let connectingSince = 0;
+/** Set when the player cannot start at all, rather than being merely slow. */
+let fatalReason = null;
+
 function setConnecting(on) {
   const bar = $("#offline");
   bar.hidden = !on;
@@ -2180,6 +2194,15 @@ function setConnecting(on) {
     return;
   }
   if (!connectingSince) connectingSince = Date.now();
+
+  // A missing binary will not fix itself, so say so immediately rather than
+  // implying it might recover.
+  if (fatalReason) {
+    bar.classList.add("error");
+    bar.innerHTML = `<span>The player is missing — reinstall Rustify,
+      making sure it isn't running first.</span>`;
+    return;
+  }
 
   // Only call it a problem once it has clearly taken too long.
   const stuck = Date.now() - connectingSince > 15000;
@@ -2236,6 +2259,13 @@ async function resync() {
   // Nothing may be requested until the socket exists. Firing commands into a
   // dead link was what produced the "not connected to the daemon" pile-up and
   // left the page stuck on skeletons.
+  // Check GitHub *before* waiting on the daemon. This used to sit after the
+  // connection gate, so anyone whose player was broken — exactly the people
+  // an update would fix — was never offered one.
+  invoke("check_update")
+    .then((info) => info && showUpdateBar(info))
+    .catch(() => {});
+
   const timedOut = await Promise.race([
     connectedOnce.then(() => false),
     new Promise((r) => setTimeout(() => r(true), 30000)),
@@ -2260,12 +2290,6 @@ async function resync() {
   setRail(true);
 
   showWhatsNew();
-
-  // Check GitHub for a newer build. Failure is silent: no network, or a
-  // repo with no releases yet, is not something to nag about.
-  invoke("check_update")
-    .then((info) => info && showUpdateBar(info))
-    .catch(() => {});
 
   // Watchdog. Events are the fast path, not the only path: if none arrives
   // for a while, reconcile against the daemon anyway.
