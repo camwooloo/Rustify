@@ -555,6 +555,13 @@ function highlightLyrics() {
  *  show, and the only one expanded by default in Settings. */
 const CHANGELOG = [
   {
+    v: "0.3.4",
+    d: "16 Aug 2026",
+    notes: [
+      "Fixed Rustify claiming it could not reach the player after you quit and reopened it, while the player was in fact running and connected",
+    ],
+  },
+  {
     v: "0.3.3",
     d: "16 Aug 2026",
     notes: [
@@ -2455,6 +2462,27 @@ async function resync() {
     .then((info) => info && showUpdateBar(info))
     .catch(() => {});
 
+  // Reconcile against the daemon on a timer. Started *before* anything can
+  // return early: when this sat after the connection gate, a missed status
+  // event left the window insisting the player was unreachable forever, over
+  // a socket that was in fact connected the whole time.
+  setInterval(() => {
+    if (Date.now() - lastEventAt > 4000) resync();
+    if (!$("#offline").hidden) setConnecting(true); // refresh the wording
+  }, 4000);
+
+  // Ask directly rather than only waiting for an event. If the player was
+  // already running, the link connects before this webview exists and the
+  // status event is delivered to nobody.
+  try {
+    if (await invoke("connected")) {
+      connected = true;
+      resolveConnected();
+    }
+  } catch {
+    /* the race below still covers it */
+  }
+
   const timedOut = await Promise.race([
     connectedOnce.then(() => false),
     new Promise((r) => setTimeout(() => r(true), 30000)),
@@ -2462,7 +2490,7 @@ async function resync() {
 
   if (timedOut) {
     setConnecting(true); // shows the stuck wording after 15s
-    return; // the link layer keeps retrying; `resync` takes over on connect
+    return; // the watchdog above keeps trying
   }
 
   try {
@@ -2480,10 +2508,4 @@ async function resync() {
 
   showWhatsNew();
 
-  // Watchdog. Events are the fast path, not the only path: if none arrives
-  // for a while, reconcile against the daemon anyway.
-  setInterval(() => {
-    if (Date.now() - lastEventAt > 4000) resync();
-    if (!$("#offline").hidden) setConnecting(true); // refresh the wording
-  }, 4000);
 })();
