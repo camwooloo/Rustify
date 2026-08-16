@@ -555,6 +555,15 @@ function highlightLyrics() {
  *  show, and the only one expanded by default in Settings. */
 const CHANGELOG = [
   {
+    v: "0.3.2",
+    d: "16 Aug 2026",
+    notes: [
+      "Media keys now work anywhere, not just when Rustify has focus",
+      "Rustify appears in the Windows media overlay with artwork, title and artist — including when the music is playing on another device",
+      "Controls keep working while Rustify sits in the tray",
+    ],
+  },
+  {
     v: "0.3.1",
     d: "16 Aug 2026",
     notes: [

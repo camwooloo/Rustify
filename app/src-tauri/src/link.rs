@@ -217,6 +217,10 @@ async fn pump(link: &Arc<DaemonLink>, stream: TcpStream, app: &AppHandle) -> Res
                 }
             }
             Some("event") => {
+                // The media overlay follows the same events the UI does.
+                #[cfg(windows)]
+                crate::smtc::apply_event(app, &frame);
+
                 // Forward verbatim; the daemon's wire shape is the UI's model.
                 let _ = app.emit(EVENT_CHANNEL, frame);
             }

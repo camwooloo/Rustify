@@ -8,6 +8,8 @@
 //! cannot desynchronise anything.
 
 mod link;
+#[cfg(windows)]
+mod smtc;
 mod tray;
 mod update;
 
@@ -55,6 +57,11 @@ async fn apply_update(app: tauri::AppHandle, url: String) -> Result<(), String> 
         app.exit(0);
     });
     Ok(())
+}
+
+#[cfg(windows)]
+fn anyhow_msg(msg: &str) -> String {
+    msg.to_string()
 }
 
 /// Tell the daemon whether a window is actually on screen.
@@ -105,6 +112,27 @@ fn main() {
             // reopening it.
             if let Err(e) = tray::build(&handle, link.clone()) {
                 tracing::warn!("tray icon unavailable: {e}");
+            }
+
+            // Media keys and the Windows media overlay. Attached to the window
+            // handle, so it survives the window being hidden to the tray.
+            #[cfg(windows)]
+            {
+                use tauri::Manager;
+                match app
+                    .get_webview_window("main")
+                    .ok_or_else(|| anyhow_msg("no main window"))
+                    .and_then(|w| w.hwnd().map_err(|e| anyhow_msg(&e.to_string())))
+                    .and_then(|hwnd| {
+                        smtc::Smtc::new(hwnd.0 as isize, link.clone())
+                            .map_err(|e| anyhow_msg(&format!("{e:#}")))
+                    }) {
+                    Ok(smtc) => {
+                        app.manage(std::sync::Arc::new(smtc));
+                        tracing::info!("media controls registered");
+                    }
+                    Err(e) => tracing::warn!("media controls unavailable: {e}"),
+                }
             }
 
             tauri::async_runtime::spawn(async move {

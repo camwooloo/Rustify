@@ -4804,7 +4804,7 @@ dependencies = [
 
 [[package]]
 name = "spotify-daemon"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "anyhow",
  "directories",
@@ -4826,7 +4826,7 @@ dependencies = [
 
 [[package]]
 name = "spotify-jam"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "anyhow",
  "bytes",
@@ -4845,7 +4845,7 @@ dependencies = [
 
 [[package]]
 name = "spotify-player-core"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "anyhow",
  "directories",
@@ -4869,7 +4869,7 @@ dependencies = [
 
 [[package]]
 name = "spotify-proto"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "serde",
  "serde_json",
@@ -4877,7 +4877,7 @@ dependencies = [
 
 [[package]]
 name = "spotify-rust-app"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "anyhow",
  "reqwest 0.12.28",
@@ -4890,11 +4890,12 @@ dependencies = [
  "tokio",
  "tracing",
  "tracing-subscriber",
+ "windows 0.61.3",
 ]
 
 [[package]]
 name = "spotify-web"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "anyhow",
  "chrono",
