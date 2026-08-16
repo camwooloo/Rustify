@@ -183,9 +183,25 @@ impl JamClient {
     }
 
     /// Join an existing Jam from a share link or a bare join token.
+    ///
+    /// Accepts Spotify's short links as well. Those are Branch deep links
+    /// (`spotify.link` / `spotify.app.link`) that wrap the canonical
+    /// `open.spotify.com/socialsession/<token>` URL, so their final path
+    /// segment is a shortener key, *not* a join token — pasting one without
+    /// resolving it first would silently try to join a session that does not
+    /// exist.
     pub async fn join(&self, link: &str) -> Result<JamState> {
-        let token = extract_join_token(link)
-            .ok_or_else(|| anyhow!("could not find a Jam join token in {link:?}"))?;
+        let token = match extract_join_token(link) {
+            Some(token) => token,
+            None => {
+                let resolved = resolve_share_link(link).await.with_context(|| {
+                    format!("could not resolve the share link {link:?}")
+                })?;
+                extract_join_token(&resolved).ok_or_else(|| {
+                    anyhow!("{link:?} did not lead to a Jam invite")
+                })?
+            }
+        };
         let endpoint = format!("{}{token}", endpoints::JOIN);
         let raw = self.call(Method::POST, &endpoint).await?;
         Ok(raw.into_state(&self.self_user()))
@@ -260,7 +276,9 @@ fn message_to_state(msg: &Message, self_user: &str) -> Option<JamState> {
     }
 }
 
-/// Accept a full share link, a `spotify:socialsession:` URI, or a bare token.
+/// Accept a canonical share link, a `spotify:socialsession:` URI, or a bare
+/// token. Returns `None` for anything needing a network round trip, which the
+/// caller resolves.
 fn extract_join_token(input: &str) -> Option<String> {
     let trimmed = input.trim();
     if trimmed.is_empty() {
@@ -273,18 +291,82 @@ fn extract_join_token(input: &str) -> Option<String> {
 
     if trimmed.starts_with("http://") || trimmed.starts_with("https://") {
         let url = url::Url::parse(trimmed).ok()?;
-        // .../socialsession/<token>
-        let token = url
-            .path_segments()?
-            .filter(|s| !s.is_empty())
-            .next_back()?
-            .to_string();
-        return (!token.is_empty()).then_some(token);
+
+        // Only a URL that actually names a social session carries a token.
+        // A shortener's final segment is its own key and must not be taken
+        // for one.
+        let segments: Vec<_> = url.path_segments()?.filter(|s| !s.is_empty()).collect();
+        if !segments.iter().any(|s| s.eq_ignore_ascii_case("socialsession")) {
+            return None;
+        }
+        let token = segments.last()?.to_string();
+        return (!token.is_empty() && !token.eq_ignore_ascii_case("socialsession"))
+            .then_some(token);
     }
 
     // Assume a bare token; reject anything with obvious URL punctuation so a
     // malformed paste produces a clear error instead of a confusing 404.
     (!trimmed.contains('/') && !trimmed.contains(' ')).then(|| trimmed.to_string())
+}
+
+/// Hosts we are willing to follow a share link through.
+///
+/// This is an allow-list on purpose: the link comes from whatever the user
+/// pasted, and following arbitrary URLs from input is how a share box turns
+/// into a request-forgery tool.
+fn is_spotify_host(url: &url::Url) -> bool {
+    matches!(
+        url.host_str(),
+        Some("spotify.link")
+            | Some("spotify.app.link")
+            | Some("open.spotify.com")
+            | Some("link.spotify.com")
+    )
+}
+
+/// Follow a Spotify short link to the canonical socialsession URL.
+async fn resolve_share_link(link: &str) -> Result<String> {
+    let url = url::Url::parse(link.trim()).context("that is not a link")?;
+    if url.scheme() != "https" {
+        return Err(anyhow!("only https links can be resolved"));
+    }
+    if !is_spotify_host(&url) {
+        return Err(anyhow!(
+            "{} is not a Spotify link",
+            url.host_str().unwrap_or("that host")
+        ));
+    }
+
+    let client = reqwest::Client::builder()
+        .redirect(reqwest::redirect::Policy::limited(5))
+        .build()
+        .context("building the link resolver")?;
+
+    let response = client
+        .get(url.clone())
+        // Branch serves app-store bounce pages to unknown agents; a normal
+        // browser agent gets the real redirect.
+        .header(
+            reqwest::header::USER_AGENT,
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+        )
+        .send()
+        .await
+        .context("following the link")?;
+
+    let final_url = response.url().clone();
+
+    // Branch keeps the real destination in a `$full_url` query parameter.
+    if let Some(full) = final_url
+        .query_pairs()
+        .find(|(k, _)| k == "$full_url")
+        .map(|(_, v)| v.into_owned())
+    {
+        debug!("resolved {link} via $full_url");
+        return Ok(full);
+    }
+
+    Ok(final_url.to_string())
 }
 
 #[cfg(test)]
@@ -304,6 +386,19 @@ mod tests {
         assert_eq!(extract_join_token("  rawtoken  "), Some("rawtoken".into()));
         assert_eq!(extract_join_token(""), None);
         assert_eq!(extract_join_token("not a token"), None);
+    }
+
+    /// Regression: a shortener's key is not a join token. Treating it as one
+    /// silently attempted to join a session that never existed.
+    #[test]
+    fn shortener_links_are_not_mistaken_for_join_links() {
+        assert_eq!(extract_join_token("https://spotify.link/abc123XYZ"), None);
+        assert_eq!(extract_join_token("https://spotify.app.link/abc123"), None);
+        // …and the canonical form still resolves locally, with no round trip.
+        assert_eq!(
+            extract_join_token("https://open.spotify.com/socialsession/tok"),
+            Some("tok".into())
+        );
     }
 
     #[test]

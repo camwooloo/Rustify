@@ -500,6 +500,14 @@ function highlightLyrics() {
  *  show, and the only one expanded by default in Settings. */
 const CHANGELOG = [
   {
+    v: "0.2.2",
+    d: "16 Aug 2026",
+    notes: [
+      "You can now paste Spotify's short Jam links (spotify.link) to join — they are resolved to the real invite first",
+      "Only Spotify's own link hosts are ever followed, so a pasted link cannot point Rustify somewhere else",
+    ],
+  },
+  {
     v: "0.2.1",
     d: "16 Aug 2026",
     notes: [
