@@ -392,6 +392,7 @@ function cardGrid(items, kind) {
             ? esc(it.owner || "")
             : artistNames(it) || "";
       return `<button class="card ${kind === "artist" ? "round" : ""}"
+                style="--wash-h:${hueOf(it.id || it.uri || it.name)}"
                 data-open="${kind}" data-id="${esc(it.id)}" data-uri="${esc(it.uri)}">
           ${art(it.coverUrl || it.imageUrl)}
           <div class="title">${esc(it.name)}</div>
@@ -625,6 +626,16 @@ async function renderSettings(content) {
     <h1 class="greeting">Settings</h1>
     <div class="settings">
 
+      <div class="newlook-row">
+        <div class="label">
+          <b>New Look</b>
+          <p>A redesigned interface: flat sidebar, segmented tabs, and a
+             floating player bar with the controls on the left. Based on the
+             Spotify Redesign community concept. Switches instantly.</p>
+        </div>
+        <div class="control">${toggleHtml("newLook", newLookOn())}</div>
+      </div>
+
       <div class="set-group">Audio quality</div>
       ${setRow(
         "Streaming quality",
@@ -715,6 +726,7 @@ async function renderSettings(content) {
     normalise: content.querySelector('[data-toggle="normalise"]').classList.contains("on"),
     autoplay: content.querySelector('[data-toggle="autoplay"]').classList.contains("on"),
     cacheAudio: content.querySelector('[data-toggle="cacheAudio"]').classList.contains("on"),
+    // newLook is deliberately absent: it is a UI preference, not playback.
     deviceName: content.querySelector("#set-device").value.trim(),
   });
 
@@ -729,7 +741,14 @@ async function renderSettings(content) {
   content.querySelectorAll("[data-toggle]").forEach((b) => {
     b.onclick = () => {
       b.classList.toggle("on");
-      b.setAttribute("aria-checked", b.classList.contains("on"));
+      const on = b.classList.contains("on");
+      b.setAttribute("aria-checked", on);
+
+      // This one is a local theme flag, not a daemon setting.
+      if (b.dataset.toggle === "newLook") {
+        applyNewLook(on);
+        return;
+      }
       push();
     };
   });
@@ -750,6 +769,22 @@ async function renderSettings(content) {
   };
 }
 
+/** Switch between the default skin and the New Look.
+ *
+ * Purely presentational, so it lives in the UI rather than the daemon: it is
+ * a class on <body> that a second stylesheet keys off, which means switching
+ * is instant and the default theme is never touched.
+ */
+function applyNewLook(on) {
+  localStorage.setItem("rustify.newLook", on ? "1" : "0");
+  document.body.classList.toggle("newlook", !!on);
+  // Card art in the New Look carries a coloured cap derived from the item,
+  // so anything already on screen needs repainting.
+  render();
+}
+
+const newLookOn = () => localStorage.getItem("rustify.newLook") === "1";
+
 /** Interface scale. Kept in the UI because it is purely presentational. */
 function applyZoom(percent) {
   localStorage.setItem("rustify.zoom", String(percent));
@@ -758,6 +793,7 @@ function applyZoom(percent) {
 }
 
 applyZoom(Number(localStorage.getItem("rustify.zoom") || 100));
+document.body.classList.toggle("newlook", newLookOn());
 
 /** Render a failure the user can act on, instead of an empty screen. */
 function renderError(content, message) {

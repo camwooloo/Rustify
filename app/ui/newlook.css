@@ -1,0 +1,380 @@
+/* "New Look" — a second skin, adapted from the Spotify Redesign community
+   file (figma.com/design/A2qFviDaFHdVyk78n7lChx).
+
+   Loaded always, but every rule is scoped to `body.newlook`, so the default
+   theme is untouched and the toggle is a class flip with no reload.
+
+   Palette and type come from the file's own variables rather than being
+   eyeballed:
+     Bg/Main #060606 · Bg/Primary #111111
+     Fg/Primary #E0E0E0 · Fg/Secondary #898989 · Primary #1ED760
+     Satoshi 20/700, 14/400, 12/400
+
+   Satoshi is not a system font and is not redistributable here, so it is
+   requested first and falls back to the closest geometric sans available. */
+
+body.newlook {
+  --accent: #1ed760;
+  --accent-hi: #34e574;
+  --accent-rgb: 30, 215, 96;
+  --on-accent: #06210f;
+
+  --bg-0: #060606;
+  --bg-1: #060606;
+  --panel: #111111;
+
+  --text: #e0e0e0;
+  --text-dim: #898989;
+  --text-mute: #6a6a6a;
+
+  --glass: #111111;
+  --glass-2: #191919;
+  --glass-hi: #222222;
+  --stroke: #1e1e1e;
+  --stroke-2: #2a2a2a;
+  --hairline: #1a1a1a;
+  --shadow: 0 24px 60px -24px rgba(0, 0, 0, 0.8);
+
+  --radius: 16px;
+  --radius-sm: 12px;
+  --titlebar-h: 52px;
+  --bar-h: 76px;
+
+  --font: Satoshi, "Segoe UI Variable Display", Inter, "Segoe UI", system-ui,
+    sans-serif;
+
+  background: var(--bg-0);
+}
+
+/* Flat background: this design has no ambient wash. */
+body.newlook::before { display: none; }
+
+/* ---------------------------------------------------------- top bar */
+
+body.newlook #titlebar {
+  height: var(--titlebar-h);
+  padding: 0 12px 0 18px;
+}
+
+/* Home / Browse / Search sit together as segmented tabs. */
+body.newlook .tb-center { gap: 6px; }
+
+body.newlook .home-btn,
+body.newlook .search-box {
+  height: 40px;
+  border-radius: 12px;
+  border: 1px solid transparent;
+  background: transparent;
+}
+
+body.newlook .home-btn {
+  width: auto;
+  min-width: 150px;
+  gap: 10px;
+  padding: 0 18px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  color: var(--text-dim);
+  font-weight: 700;
+  font-size: 14px;
+}
+
+body.newlook .home-btn::after {
+  content: "Home";
+  white-space: nowrap;
+}
+
+body.newlook .home-btn.on {
+  background: var(--panel);
+  border-color: var(--stroke-2);
+  color: var(--text);
+}
+
+body.newlook .home-btn:hover { transform: none; background: var(--glass-2); }
+
+body.newlook .search-box {
+  width: 260px;
+  padding: 0 16px;
+  gap: 12px;
+}
+
+body.newlook .search-box:focus-within {
+  background: var(--panel);
+  border-color: var(--stroke-2);
+}
+
+body.newlook .search-box .divider,
+body.newlook .search-box .browse-btn { display: none; }
+
+body.newlook .icon-btn { color: var(--text-dim); }
+body.newlook .icon-btn:hover:not(:disabled) { background: var(--glass-2); }
+
+/* ----------------------------------------------------------- shell */
+
+body.newlook #shell {
+  gap: 0;
+  padding: 0 10px 10px;
+}
+
+/* The sidebar is flat here — the panel treatment belongs to the main area. */
+body.newlook #sidebar > .panel,
+body.newlook #sidebar .library {
+  background: transparent;
+  border: 0;
+  backdrop-filter: none;
+}
+
+body.newlook .library-head {
+  padding: 4px 18px 14px;
+  color: var(--text);
+  font-weight: 700;
+  font-size: 15px;
+}
+
+body.newlook .lib-filters { padding: 0 14px 14px; }
+
+body.newlook .chip {
+  background: transparent;
+  border-color: var(--stroke-2);
+  color: var(--text-dim);
+}
+
+body.newlook .chip.active {
+  background: var(--panel);
+  border-color: var(--stroke-2);
+  color: var(--text);
+}
+
+body.newlook .library-row { padding: 9px 12px; border-radius: 10px; }
+body.newlook .library-row:hover { background: var(--glass-2); }
+
+body.newlook .library-row img,
+body.newlook .library-row .thumb {
+  width: 38px;
+  height: 38px;
+  border-radius: 8px;
+}
+
+body.newlook .library-row .title { font-weight: 500; font-size: 14px; }
+body.newlook .library-row .sub { font-size: 12px; }
+
+/* Main is the one raised surface. */
+body.newlook #main {
+  background: var(--panel);
+  border: 0;
+  border-radius: var(--radius);
+}
+
+body.newlook #rail {
+  background: var(--panel);
+  border: 0;
+  border-radius: var(--radius);
+  margin-left: 10px;
+}
+
+body.newlook .topbar { display: none; }
+body.newlook .content { padding: 20px 26px 28px; }
+
+/* ---------------------------------------------------------- shelves */
+
+body.newlook .greeting {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  margin: 4px 0 18px;
+}
+
+body.newlook .shelf-head {
+  align-items: center;
+  margin: 30px 0 14px;
+}
+
+body.newlook .shelf-head h2 {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+}
+
+/* The paging arrows and overflow dot that sit at the end of each shelf. */
+body.newlook .shelf-head::after {
+  content: "← → ⋯";
+  margin-left: auto;
+  color: var(--text-dim);
+  font-size: 15px;
+  letter-spacing: 6px;
+}
+
+body.newlook .show-all { order: -1; }
+
+/* --------------------------------------------------------- cards */
+
+body.newlook .grid {
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 14px;
+}
+
+/* Cards are flat: artwork with a coloured cap, then text beneath. */
+body.newlook .card {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  border-radius: 0;
+  overflow: visible;
+}
+
+body.newlook .card:hover {
+  transform: none;
+  box-shadow: none;
+  background: transparent;
+}
+
+body.newlook .card img,
+body.newlook .card .thumb {
+  border-radius: 4px 4px 2px 2px;
+  margin-bottom: 10px;
+  /* The coloured cap along the top edge of every cover. */
+  border-top: 4px solid hsl(var(--wash-h, 145) 70% 55%);
+}
+
+body.newlook .card.round img,
+body.newlook .card.round .thumb {
+  border-radius: 50%;
+  border-top: 0;
+}
+
+body.newlook .card .title {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+
+body.newlook .card .sub {
+  font-size: 12px;
+  color: var(--text-dim);
+  line-height: 1.45;
+}
+
+body.newlook .card .play {
+  top: auto;
+  bottom: 64px;
+  right: 10px;
+  width: 40px;
+  height: 40px;
+}
+
+/* --------------------------------------------------- now playing bar */
+
+/* Inset, floating, and re-ordered: transport on the left, the track in the
+   middle, actions on the right — as in the redesign. */
+body.newlook #player {
+  margin: 0 10px 10px;
+  padding: 0 18px;
+  background: var(--panel);
+  border: 0;
+  border-radius: var(--radius);
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr) auto;
+  gap: 22px;
+}
+
+body.newlook .controls {
+  order: 1;
+  flex-direction: row;
+  align-items: center;
+  gap: 14px;
+}
+
+body.newlook .np { order: 2; }
+body.newlook .right-controls { order: 3; }
+
+body.newlook .control-row { gap: 14px; }
+
+body.newlook .ctl-play {
+  width: 38px;
+  height: 38px;
+  background: var(--accent);
+  order: -1;
+}
+
+body.newlook .ctl-play:hover { background: var(--accent-hi); }
+body.newlook .ctl-play svg { fill: var(--on-accent); }
+
+body.newlook .progress-row { max-width: none; flex: 1; }
+
+body.newlook .np img,
+body.newlook .np .thumb {
+  width: 44px;
+  height: 44px;
+  border-radius: 6px;
+}
+
+body.newlook .np .name { font-size: 13px; font-weight: 500; }
+body.newlook .np .artist { font-size: 12px; }
+
+body.newlook input[type="range"]::-webkit-slider-runnable-track {
+  height: 4px;
+  background: linear-gradient(
+    to right,
+    var(--text) 0%,
+    var(--text) var(--pct, 0%),
+    #333 var(--pct, 0%),
+    #333 100%
+  );
+}
+
+/* --------------------------------------------------------- surfaces */
+
+body.newlook .popover,
+body.newlook #ctxmenu {
+  background: #141414;
+  border-color: var(--stroke-2);
+  border-radius: 12px;
+}
+
+body.newlook .rail-tab.active::after { background: var(--accent); }
+body.newlook .patch { background: transparent; border-color: var(--stroke-2); }
+body.newlook .set-row { border-bottom-color: var(--hairline); }
+
+body.newlook .track-row:hover { background: var(--glass-2); }
+body.newlook .track-head { border-bottom-color: var(--hairline); }
+
+body.newlook .quick {
+  background: var(--glass-2);
+  border-color: var(--stroke);
+  border-radius: 6px;
+}
+
+body.newlook .detail-wrap {
+  background: linear-gradient(
+    180deg,
+    hsl(var(--wash-h, 145) 30% 22%) 0%,
+    transparent 100%
+  );
+}
+
+/* The toggle row itself, pinned to the top of Settings. */
+.newlook-row {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 16px;
+  margin: 4px 0 8px;
+  border-radius: 14px;
+  background: linear-gradient(
+    100deg,
+    rgba(var(--accent-rgb), 0.14),
+    rgba(var(--accent-rgb), 0.03)
+  );
+  border: 1px solid rgba(var(--accent-rgb), 0.35);
+}
+
+.newlook-row .label { flex: 1; min-width: 0; }
+.newlook-row .label b { font-size: 15px; font-weight: 700; }
+
+.newlook-row .label p {
+  color: var(--text-mute);
+  font-size: 12.5px;
+  line-height: 1.55;
+  margin-top: 4px;
+}
