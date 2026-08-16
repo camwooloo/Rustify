@@ -378,3 +378,140 @@ body.newlook .detail-wrap {
   line-height: 1.55;
   margin-top: 4px;
 }
+
+/* ------------------------------------------------- detail, refined ----
+   Taken from the redesign's playlist frame: the artwork sits on the right
+   rather than beside the title, the heading is left-aligned with a compact
+   meta line beneath it, and the track table drops "date added" so duration
+   and the heart finish the row. */
+
+/* No negative margins here: widening the element past its container to get a
+   full-bleed wash pushed the page into horizontal overflow. The wash stays
+   inside the padding instead. */
+body.newlook .detail-wrap {
+  margin: 0;
+  padding: 0;
+}
+
+body.newlook .detail-head {
+  flex-direction: row-reverse;
+  align-items: flex-start;
+  gap: 28px;
+  padding: 22px 0 12px;
+}
+
+/* Artwork: smaller, squared off, and pushed to the right edge. */
+body.newlook .detail-head img,
+body.newlook .detail-head .thumb {
+  width: 232px;
+  height: 232px;
+  border-radius: 10px;
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.55);
+}
+
+body.newlook .detail-head .kind { display: none; }
+
+body.newlook .detail-head > div:last-child {
+  flex: 1;
+  min-width: 0;
+  padding-top: 4px;
+}
+
+body.newlook .detail-head h1 {
+  font-size: clamp(28px, 3.4vw, 42px);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  margin: 0 0 10px;
+}
+
+body.newlook .detail-head .sub {
+  font-size: 13px;
+  color: var(--text-dim);
+}
+
+body.newlook .detail-head .sub strong { color: var(--text); font-weight: 700; }
+
+/* The action row sits under the meta line, not centred. */
+body.newlook .detail-actions {
+  gap: 18px;
+  padding: 2px 0 18px;
+}
+
+body.newlook .play-big {
+  width: 44px;
+  height: 44px;
+  box-shadow: none;
+}
+
+body.newlook .play-big svg { width: 18px; height: 18px; }
+body.newlook .act svg { width: 20px; height: 20px; }
+
+/* Columns: # | Title | Album | Duration | heart. */
+body.newlook .track-head,
+body.newlook .track-row {
+  grid-template-columns: 34px minmax(0, 4fr) minmax(0, 3fr) 72px 44px;
+  padding: 6px 10px;
+}
+
+body.newlook .track-head .col-added,
+body.newlook .track-row .added { display: none; }
+
+body.newlook .track-row .dur,
+body.newlook .track-head > div:nth-child(6) { order: 4; text-align: left; }
+
+body.newlook .track-row .heart,
+body.newlook .track-head > div:nth-child(5) { order: 5; }
+
+/* The heart is a permanent column here rather than a hover affordance. */
+body.newlook .track-row .heart { opacity: 1; }
+body.newlook .track-row .heart svg { fill: var(--text-mute); }
+body.newlook .track-row .heart.on svg { fill: var(--accent); }
+
+body.newlook .track-row .cell-title img {
+  width: 40px;
+  height: 40px;
+  border-radius: 4px;
+}
+
+body.newlook .track-head {
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  color: var(--text-dim);
+  border-bottom: 1px solid var(--stroke);
+  padding-bottom: 10px;
+}
+
+/* The artwork is the first thing to give way when the window narrows —
+   losing it costs nothing next to squeezing the track list. */
+@media (max-width: 1200px) {
+  body.newlook .detail-head img,
+  body.newlook .detail-head .thumb {
+    width: 170px;
+    height: 170px;
+  }
+}
+
+@media (max-width: 980px) {
+  body.newlook .detail-head img,
+  body.newlook .detail-head .thumb {
+    width: 120px;
+    height: 120px;
+  }
+}
+
+/* The wide centre group (a labelled Home tab plus a 260px search field) left
+   too little room for the window controls, which were pushed off the right
+   edge and made the whole page scroll sideways. Give the bar room to shrink
+   and drop the label before that can happen. */
+body.newlook .tb-center { min-width: 0; }
+
+@media (max-width: 1050px) {
+  body.newlook .search-box { width: 190px; }
+  body.newlook .home-btn { min-width: 0; padding: 0 14px; }
+}
+
+@media (max-width: 900px) {
+  body.newlook .search-box { width: 150px; }
+  body.newlook .home-btn::after { display: none; }
+}

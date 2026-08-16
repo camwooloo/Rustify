@@ -555,6 +555,14 @@ function highlightLyrics() {
  *  show, and the only one expanded by default in Settings. */
 const CHANGELOG = [
   {
+    v: "0.3.3",
+    d: "16 Aug 2026",
+    notes: [
+      "New Look album and playlist pages now match the design: artwork on the right, a left-aligned title, and a cleaner track list ending in duration and the heart",
+      "The top bar no longer pushes the window buttons off the edge in a narrow window",
+    ],
+  },
+  {
     v: "0.3.2",
     d: "16 Aug 2026",
     notes: [
