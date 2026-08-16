@@ -107,10 +107,17 @@ impl RawSession {
         JamState {
             active,
             session_id: self.session_id,
-            join_url: self.join_session_url.or_else(|| {
-                self.join_session_token
-                    .map(|t| format!("https://open.spotify.com/socialsession/{t}"))
-            }),
+            // Build the shareable link from the token. `join_session_url`
+            // comes back as an internal `hm://social-connect/...` URI, which
+            // is useless to a friend, so it is only used if it happens to be
+            // a real web link.
+            join_url: self
+                .join_session_token
+                .map(|t| format!("https://open.spotify.com/socialsession/{t}"))
+                .or_else(|| {
+                    self.join_session_url
+                        .filter(|u| u.starts_with("https://"))
+                }),
             is_host,
             participants,
         }
@@ -142,7 +149,8 @@ impl JamClient {
         // Log the raw body at trace level: when Spotify changes the schema,
         // this is the single most useful diagnostic.
         let text = String::from_utf8_lossy(&bytes);
-        debug!(%endpoint, len = text.len(), "social-connect response");
+        debug!(%endpoint, len = text.len(), body = %&text[..text.len().min(400)],
+               "social-connect response");
 
         parse_session(&text)
             .with_context(|| format!("parsing social-connect response from {endpoint}"))
@@ -161,8 +169,12 @@ impl JamClient {
     }
 
     /// Host a Jam on this device, returning the shareable link.
+    ///
+    /// `current_or_new` is a GET even though it creates a session — POST
+    /// returns 405. That is not a typo: the service treats it as "fetch my
+    /// session, making one if absent".
     pub async fn create(&self) -> Result<JamState> {
-        let raw = self.call(Method::POST, endpoints::CURRENT_OR_NEW).await?;
+        let raw = self.call(Method::GET, endpoints::CURRENT_OR_NEW).await?;
         let state = raw.into_state(&self.self_user());
         if state.join_url.is_none() {
             warn!("jam created but no join link was returned; schema may have changed");
@@ -328,6 +340,20 @@ mod tests {
         let state = parse_session(odd).unwrap().into_state("me");
         assert!(!state.active, "a memberless session is not a live jam");
         assert_eq!(state.session_id.as_deref(), Some("s1"));
+    }
+
+    /// Regression: the service returns an internal hm:// URI alongside the
+    /// token. Handing that to a friend does nothing.
+    #[test]
+    fn an_internal_hm_url_never_becomes_the_share_link() {
+        let raw = r#"{"session_id":"s","join_session_token":"tok",
+            "join_session_url":"hm://social-connect/v2/sessions/join/tok",
+            "session_members":[{"id":"a"}]}"#;
+        let state = parse_session(raw).unwrap().into_state("a");
+        assert_eq!(
+            state.join_url.as_deref(),
+            Some("https://open.spotify.com/socialsession/tok")
+        );
     }
 
     #[test]
