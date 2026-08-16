@@ -53,6 +53,17 @@
   display: none !important;
 }
 
+/* An inline <svg> with no width or height falls back to the replaced-element
+   default of 300x150. That has silently wrecked three layouts here — the
+   Liked Songs tile, the track rows, and the hover play icon — because the
+   markup helper emits bare <svg><use/></svg>. A sane default ends the whole
+   class; every specific rule below still overrides it. */
+svg {
+  width: 16px;
+  height: 16px;
+  flex: none;
+}
+
 html,
 body {
   height: 100%;

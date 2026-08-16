@@ -168,6 +168,15 @@ struct RawImage {
     width: Option<u32>,
 }
 
+/// Parse track uris into playable ids, skipping anything that is not a track.
+fn playable_ids(uris: &[String]) -> Result<Vec<rspotify::model::PlayableId<'static>>> {
+    Ok(uris
+        .iter()
+        .filter_map(|u| TrackId::from_id_or_uri(u).ok())
+        .map(|id| rspotify::model::PlayableId::Track(id.into_static()))
+        .collect())
+}
+
 fn widest(images: &[RawImage]) -> Option<String> {
     images
         .iter()
@@ -707,6 +716,81 @@ impl WebClient {
         })
         .await?;
         Ok(page.items.iter().map(convert::full_track).collect())
+    }
+
+    /// Create a playlist under the signed-in user.
+    pub async fn create_playlist(&self, name: &str) -> Result<wire::Playlist> {
+        let me = retrying("reading your profile", || self.client.me()).await?;
+        let created = retrying("creating the playlist", || {
+            self.client
+                .user_playlist_create(me.id.clone(), name, Some(false), Some(false), None)
+        })
+        .await?;
+
+        Ok(wire::Playlist {
+            uri: created.id.to_string(),
+            id: created.id.id().to_string(),
+            name: created.name.clone(),
+            owner: me.display_name.clone().unwrap_or_default(),
+            description: None,
+            cover_url: None,
+            total_tracks: 0,
+        })
+    }
+
+    /// Append tracks to a playlist.
+    pub async fn add_to_playlist(&self, playlist_id: &str, uris: &[String]) -> Result<()> {
+        let pid = PlaylistId::from_id_or_uri(playlist_id)
+            .context("parsing playlist id")?
+            .into_static();
+        let ids = playable_ids(uris)?;
+        if ids.is_empty() {
+            return Err(anyhow!("nothing to add"));
+        }
+        // The endpoint accepts 100 per call.
+        for chunk in ids.chunks(100) {
+            retrying("adding to the playlist", || {
+                self.client
+                    .playlist_add_items(pid.clone(), chunk.iter().cloned(), None)
+            })
+            .await?;
+        }
+        Ok(())
+    }
+
+    /// Remove every occurrence of these tracks from a playlist.
+    pub async fn remove_from_playlist(&self, playlist_id: &str, uris: &[String]) -> Result<()> {
+        let pid = PlaylistId::from_id_or_uri(playlist_id)
+            .context("parsing playlist id")?
+            .into_static();
+        let ids = playable_ids(uris)?;
+        if ids.is_empty() {
+            return Err(anyhow!("nothing to remove"));
+        }
+        for chunk in ids.chunks(100) {
+            retrying("removing from the playlist", || {
+                self.client.playlist_remove_all_occurrences_of_items(
+                    pid.clone(),
+                    chunk.iter().cloned(),
+                    None,
+                )
+            })
+            .await?;
+        }
+        Ok(())
+    }
+
+    pub async fn rename_playlist(&self, playlist_id: &str, name: &str) -> Result<()> {
+        let pid = PlaylistId::from_id_or_uri(playlist_id)
+            .context("parsing playlist id")?
+            .into_static();
+        // The endpoint echoes a snapshot id we have no use for.
+        retrying("renaming the playlist", || {
+            self.client
+                .playlist_change_detail(pid.clone(), Some(name), None, None, None)
+        })
+        .await
+        .map(|_| ())
     }
 
     /// Name and artwork for a playlist, by uri or id.

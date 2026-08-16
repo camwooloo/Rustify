@@ -487,6 +487,41 @@ impl Daemon {
                 Ok(Payload::Albums { items, total })
             }
 
+            CreatePlaylist { name } => {
+                let web = self.require_web().await?;
+                let web = web.as_ref().expect("checked by require_web");
+                let name = name.trim();
+                if name.is_empty() {
+                    return Err(anyhow!("a playlist needs a name"));
+                }
+                Ok(Payload::Playlist(Box::new(web.create_playlist(name).await?)))
+            }
+
+            AddToPlaylist { playlist_id, uris } => {
+                let web = self.require_web().await?;
+                let web = web.as_ref().expect("checked by require_web");
+                web.add_to_playlist(&playlist_id, &uris).await?;
+                Ok(Payload::Ok)
+            }
+
+            RemoveFromPlaylist { playlist_id, uris } => {
+                let web = self.require_web().await?;
+                let web = web.as_ref().expect("checked by require_web");
+                web.remove_from_playlist(&playlist_id, &uris).await?;
+                Ok(Payload::Ok)
+            }
+
+            RenamePlaylist { playlist_id, name } => {
+                let web = self.require_web().await?;
+                let web = web.as_ref().expect("checked by require_web");
+                let name = name.trim();
+                if name.is_empty() {
+                    return Err(anyhow!("a playlist needs a name"));
+                }
+                web.rename_playlist(&playlist_id, name).await?;
+                Ok(Payload::Ok)
+            }
+
             GetAlbum { id } => {
                 let web = self.require_web().await?;
                 let web = web.as_ref().expect("checked by require_web");

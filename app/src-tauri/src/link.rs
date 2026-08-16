@@ -103,13 +103,13 @@ impl DaemonLink {
 /// Maintain the connection for the life of the app.
 pub async fn run(link: Arc<DaemonLink>, app: AppHandle) {
     let mut backoff = Duration::from_millis(250);
-    let mut tried_spawn = false;
+    let mut failures: u32 = 0;
 
     loop {
         match TcpStream::connect(("127.0.0.1", link.port)).await {
             Ok(stream) => {
                 backoff = Duration::from_millis(250);
-                tried_spawn = false;
+                failures = 0;
                 link.connected.store(true, Ordering::Relaxed);
                 let _ = app.emit(STATUS_CHANNEL, json!({ "connected": true }));
                 info!("connected to daemon on port {}", link.port);
@@ -124,9 +124,13 @@ pub async fn run(link: Arc<DaemonLink>, app: AppHandle) {
                 let _ = app.emit(STATUS_CHANNEL, json!({ "connected": false }));
             }
             Err(e) => {
-                // First failure is the normal cold-start case: no daemon yet.
-                if !tried_spawn {
-                    tried_spawn = true;
+                failures += 1;
+
+                // The first failure is the normal cold-start case. Retrying
+                // periodically after that is what makes a player that died —
+                // or failed to start once — come back on its own, instead of
+                // waiting for the user to restart Rustify.
+                if failures == 1 || failures % 10 == 0 {
                     match spawn_daemon() {
                         Ok(()) => info!("started the daemon"),
                         Err(e) => {

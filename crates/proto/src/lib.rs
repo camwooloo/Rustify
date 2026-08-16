@@ -129,6 +129,18 @@ pub enum Command {
         #[serde(default = "default_limit")]
         limit: u32,
     },
+    /// Create a playlist owned by the signed-in user.
+    CreatePlaylist { name: String },
+    /// Append tracks to a playlist.
+    #[serde(rename_all = "camelCase")]
+    AddToPlaylist { playlist_id: String, uris: Vec<String> },
+    /// Remove every occurrence of these tracks from a playlist.
+    #[serde(rename_all = "camelCase")]
+    RemoveFromPlaylist { playlist_id: String, uris: Vec<String> },
+    /// Rename a playlist.
+    #[serde(rename_all = "camelCase")]
+    RenamePlaylist { playlist_id: String, name: String },
+
     GetAlbum { id: String },
     GetArtist { id: String },
     SetSaved { uri: String, saved: bool },
@@ -244,6 +256,7 @@ pub enum Payload {
     Tracks { items: Vec<Track>, total: u32 },
     Albums { items: Vec<Album>, total: u32 },
     Album(Box<Album>),
+    Playlist(Box<Playlist>),
     Artist(Box<Artist>),
     Devices { items: Vec<Device> },
     Jam(Box<JamState>),

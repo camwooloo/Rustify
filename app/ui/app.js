@@ -555,6 +555,15 @@ function highlightLyrics() {
  *  show, and the only one expanded by default in Settings. */
 const CHANGELOG = [
   {
+    v: "0.3.0",
+    d: "16 Aug 2026",
+    notes: [
+      "Playlist editing: right-click any song to add it to a playlist, create one on the spot, or remove it from a playlist you own",
+      "Rustify restarts the player on its own if it stops, instead of waiting for you to reopen the app",
+      "Fixed the whole class of layout bugs caused by unsized icons — the same fault behind the oversized song rows and Liked Songs tile",
+    ],
+  },
+  {
     v: "0.2.7",
     d: "16 Aug 2026",
     notes: [
@@ -1348,6 +1357,9 @@ async function renderPlaylist(content, id) {
   const pl = meta.value?.items?.find((p) => p.id === id) || { name: "Playlist" };
   const uri = pl.uri || `spotify:playlist:${id}`;
 
+  const me = (state?.auth?.displayName || "").toLowerCase();
+  currentPlaylistIsMine = !!me && (pl.owner || "").toLowerCase() === me;
+
   content.innerHTML =
     detailHead({
       kind: "Public Playlist",
@@ -1720,6 +1732,91 @@ function openCtx(x, y, items) {
   });
 }
 
+/** True when the playlist currently open is one the user can edit. */
+let currentPlaylistIsMine = false;
+
+/** Cached playlist list for the "Add to playlist" picker. */
+let playlistCache = null;
+
+async function ownPlaylists() {
+  if (playlistCache) return playlistCache;
+  const res = await call({ cmd: "getPlaylists", limit: 50 });
+  const me = (state?.auth?.displayName || "").toLowerCase();
+  // Only playlists you can actually write to.
+  playlistCache = (res?.items ?? []).filter(
+    (p) => !me || (p.owner || "").toLowerCase() === me
+  );
+  return playlistCache;
+}
+
+/** Pick a playlist to add a track to, or make a new one. */
+async function addToPlaylistDialog(uri) {
+  closePopovers();
+  const pop = el("div", { className: "popover top" });
+  pop.style.cssText =
+    "left:50%;right:auto;top:64px;transform:translateX(-50%);width:min(420px,86vw)";
+  pop.innerHTML = `<h3>Add to playlist</h3>
+    <p class="hint">Loading your playlists\u2026</p>`;
+  $("#popovers").append(pop);
+
+  let items = [];
+  try {
+    items = await ownPlaylists();
+  } catch (e) {
+    pop.innerHTML = `<h3>Add to playlist</h3><p class="hint">${esc(String(e))}</p>`;
+    return;
+  }
+
+  pop.innerHTML = `<h3>Add to playlist</h3>
+    <div class="jam-input">
+      <input id="new-pl" placeholder="New playlist name" spellcheck="false">
+      <button class="pill accent" id="new-pl-go">Create</button>
+    </div>
+    <div style="max-height:46vh;overflow-y:auto;margin-top:10px">
+      ${
+        items.length
+          ? items
+              .map(
+                (p) => `<button class="device-row" data-add="${esc(p.id)}">
+                  ${art(p.coverUrl)}
+                  <div><div>${esc(p.name)}</div>
+                  <div class="hint" style="margin:0">${p.totalTracks} songs</div></div>
+                </button>`
+              )
+              .join("")
+          : `<p class="hint">You don't have any playlists you can edit yet.</p>`
+      }
+    </div>`;
+
+  const add = async (playlistId) => {
+    try {
+      await call({ cmd: "addToPlaylist", playlistId, uris: [uri] });
+      toast("Added to playlist");
+      playlistCache = null; // counts changed
+      closePopovers();
+    } catch {
+      /* the daemon reported why */
+    }
+  };
+
+  pop.querySelectorAll("[data-add]").forEach((b) => {
+    b.onclick = () => add(b.dataset.add);
+  });
+
+  pop.querySelector("#new-pl-go").onclick = async () => {
+    const name = pop.querySelector("#new-pl").value.trim();
+    if (!name) return;
+    try {
+      const created = await call({ cmd: "createPlaylist", name });
+      playlistCache = null;
+      await add(created.id);
+      renderLibrary();
+    } catch {
+      /* reported by the daemon */
+    }
+  };
+}
+
 /** Copy an https link for a Spotify URI. */
 async function copyLink(uri) {
   const [, kind, id] = String(uri).split(":");
@@ -1805,6 +1902,12 @@ document.addEventListener("contextmenu", (e) => {
       },
     });
     items.push({
+      id: "addpl",
+      icon: "queue",
+      label: "Add to playlist\u2026",
+      run: () => addToPlaylistDialog(uri),
+    });
+    items.push({
       id: "save",
       icon: "heart",
       label: "Save to your Liked Songs",
@@ -1842,6 +1945,29 @@ document.addEventListener("contextmenu", (e) => {
       }
     },
   });
+
+  // Only offered where it makes sense: a track, inside a playlist you own.
+  if (isTrack && view.name === "playlist" && currentPlaylistIsMine) {
+    items.push({
+      id: "removepl",
+      icon: "x",
+      label: "Remove from this playlist",
+      run: async () => {
+        try {
+          await call({
+            cmd: "removeFromPlaylist",
+            playlistId: view.param,
+            uris: [uri],
+          });
+          toast("Removed");
+          playlistCache = null;
+          render();
+        } catch {
+          /* reported by the daemon */
+        }
+      },
+    });
+  }
 
   items.push("-");
   items.push({
