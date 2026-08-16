@@ -57,6 +57,19 @@ async fn apply_update(app: tauri::AppHandle, url: String) -> Result<(), String> 
     Ok(())
 }
 
+/// Tell the daemon whether a window is actually on screen.
+fn report_visible(app: &tauri::AppHandle, visible: bool) {
+    let Some(link) = app.try_state::<Arc<DaemonLink>>() else {
+        return;
+    };
+    let link = link.inner().clone();
+    tauri::async_runtime::spawn(async move {
+        let _ = link
+            .call(serde_json::json!({ "cmd": "setUiVisible", "visible": visible }))
+            .await;
+    });
+}
+
 fn main() {
     tracing_subscriber::fmt()
         .with_env_filter(
@@ -99,12 +112,23 @@ fn main() {
             });
             Ok(())
         })
-        .on_window_event(|window, event| {
-            // Hide rather than exit: the player keeps running, and the tray
-            // icon is the only way to control it once the window is gone.
-            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
-                api.prevent_close();
-                let _ = window.hide();
+        .on_window_event(move |window, event| {
+            match event {
+                // Hide rather than exit: the player keeps running, and the
+                // tray icon is the only way to control it once gone.
+                tauri::WindowEvent::CloseRequested { api, .. } => {
+                    api.prevent_close();
+                    let _ = window.hide();
+                    // Nothing is on screen, so the daemon can stop polling
+                    // Spotify for what the account is doing elsewhere.
+                    report_visible(window.app_handle(), false);
+                }
+                // Covers minimise/restore and the tray's show, so polling
+                // resumes exactly when there is something to look at.
+                tauri::WindowEvent::Focused(true) => {
+                    report_visible(window.app_handle(), true)
+                }
+                _ => {}
             }
         })
         .invoke_handler(tauri::generate_handler![

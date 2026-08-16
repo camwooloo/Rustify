@@ -41,6 +41,9 @@ pub enum Command {
     Hello { protocol: u32 },
     GetState,
     Shutdown,
+    /// Tell the daemon whether a window is actually on screen. Polling
+    /// Spotify for remote playback is pointless when nobody can see it.
+    SetUiVisible { visible: bool },
 
     // -- auth -----------------------------------------------------------
     /// Kick off the interactive OAuth PKCE flow. Replies immediately with the

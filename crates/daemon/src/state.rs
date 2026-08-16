@@ -37,6 +37,8 @@ pub struct Daemon {
     /// Retrying `Login` re-opens this rather than being refused — a browser
     /// that failed to open must never lock the user out.
     pending_login: RwLock<Option<String>>,
+    /// Whether a window is on screen. Gates the remote-playback poller.
+    ui_visible: std::sync::atomic::AtomicBool,
     config: EngineConfig,
 }
 
@@ -55,12 +57,18 @@ impl Daemon {
             login: Arc::new(Mutex::new(())),
             pending_login: RwLock::new(None),
             web_client_id: RwLock::new(None),
+            // Assume visible: a client that never reports still works.
+            ui_visible: std::sync::atomic::AtomicBool::new(true),
             config,
         })
     }
 
     pub fn subscribe(&self) -> broadcast::Receiver<Event> {
         self.events.subscribe()
+    }
+
+    pub fn ui_visible(&self) -> bool {
+        self.ui_visible.load(std::sync::atomic::Ordering::Relaxed)
     }
 
     pub async fn snapshot(&self) -> PlayerState {
@@ -329,6 +337,12 @@ impl Daemon {
             }
 
             GetState => Ok(Payload::State(Box::new(self.snapshot().await))),
+
+            SetUiVisible { visible } => {
+                self.ui_visible
+                    .store(visible, std::sync::atomic::Ordering::Relaxed);
+                Ok(Payload::Ok)
+            }
 
             Shutdown => {
                 if let Ok(engine) = self.engine().await {

@@ -116,6 +116,10 @@ async fn main() -> Result<()> {
         .and_then(|p| p.parse().ok())
         .unwrap_or(DEFAULT_PORT);
 
+    // Claim the port first. If another player is already running this exits
+    // straight away, before opening a Spotify session it would only discard.
+    let listener = server::bind(port).await?;
+
     let daemon = Daemon::new(config);
 
     // A cached token means no browser round-trip on startup.
@@ -132,7 +136,7 @@ async fn main() -> Result<()> {
     tokio::spawn(tick_position(daemon.clone()));
     tokio::spawn(poll_remote(daemon.clone()));
 
-    server::serve(daemon, port).await
+    server::serve(daemon, listener).await
 }
 
 /// Advance the reported playback position between librespot's own events.
@@ -188,7 +192,12 @@ async fn poll_remote(daemon: std::sync::Arc<Daemon>) {
 
     loop {
         interval.tick().await;
-        if daemon.events.receiver_count() == 0 {
+
+        // A connected client is no longer proof anyone is looking: closing
+        // the window now hides it and keeps the connection open for the tray.
+        // Without this the daemon polled Spotify every few seconds around the
+        // clock, which it never did when closing quit the app outright.
+        if daemon.events.receiver_count() == 0 || !daemon.ui_visible() {
             continue;
         }
         daemon.poll_remote().await;

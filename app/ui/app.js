@@ -555,6 +555,14 @@ function highlightLyrics() {
  *  show, and the only one expanded by default in Settings. */
 const CHANGELOG = [
   {
+    v: "0.3.1",
+    d: "16 Aug 2026",
+    notes: [
+      "Fixed repeated network activity: a redundant player now exits immediately instead of opening a Spotify session and registering a device before giving up",
+      "Rustify no longer polls Spotify while its window is hidden — closing to the tray used to leave it checking every few seconds around the clock",
+    ],
+  },
+  {
     v: "0.3.0",
     d: "16 Aug 2026",
     notes: [

@@ -12,12 +12,25 @@ use tracing::{debug, info, warn};
 
 use crate::state::Daemon;
 
-pub async fn serve(daemon: Arc<Daemon>, port: u16) -> Result<()> {
+/// Claim the IPC port.
+///
+/// Called before anything else so a duplicate player exits immediately,
+/// without first opening a Spotify session and registering a Connect device.
+/// Doing that work before binding meant every redundant launch produced a
+/// burst of network traffic and a device that appeared and vanished.
+pub async fn bind(port: u16) -> Result<TcpListener> {
     // Loopback only. This binds no external interface by design: the daemon
     // holds a live Spotify session and must not be reachable off-machine.
-    let listener = TcpListener::bind(("127.0.0.1", port))
+    TcpListener::bind(("127.0.0.1", port))
         .await
-        .with_context(|| format!("binding IPC listener on 127.0.0.1:{port}"))?;
+        .with_context(|| format!("another Rustify player already has port {port}"))
+}
+
+pub async fn serve(daemon: Arc<Daemon>, listener: TcpListener) -> Result<()> {
+    let port = listener
+        .local_addr()
+        .map(|a| a.port())
+        .unwrap_or_default();
 
     info!("IPC listening on 127.0.0.1:{port}");
 
