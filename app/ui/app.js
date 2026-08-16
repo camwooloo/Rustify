@@ -299,24 +299,50 @@ function renderBrowsingSetup(content) {
   content.innerHTML = `
     <div class="center-note">
       <h2>One more step to browse</h2>
-      <p style="max-width:52ch">
-        Playback is working. Search, playlists and your library need a
-        <strong>Client ID</strong> from your own free Spotify app &mdash; the
-        shared one this player streams with is rate-limited by Spotify and
-        would only return errors.
+      <p style="max-width:56ch">
+        Playback is working. Search, playlists and your library need Spotify to
+        recognise you on Rustify's app &mdash; and Spotify caps that app at
+        <strong>25 listeners</strong>, added by hand.
       </p>
-      <ol style="text-align:left;max-width:52ch;line-height:2;color:var(--text-muted)">
-        <li>Open <strong>developer.spotify.com/dashboard</strong></li>
-        <li>Click <strong>Create app</strong> (any name)</li>
-        <li>Set the Redirect URI to exactly:<br>
-            <code style="color:var(--accent)">http://127.0.0.1:4382/login</code></li>
-        <li>Tick <strong>Web API</strong>, save, then copy the Client ID</li>
-      </ol>
+      <p style="max-width:56ch;color:var(--text-muted)">
+        Either ask <strong>camwooloo</strong> to add your Spotify account, then
+        press Retry &mdash; or use your own free Spotify app below.
+      </p>
+
       <div class="jam-input" style="width:min(520px,80vw)">
-        <input id="client-id" placeholder="Paste your Client ID"
-               spellcheck="false" autocomplete="off">
-        <button class="pill accent" id="client-save">Save</button>
+        <button class="pill accent" id="browse-retry">Retry</button>
       </div>
+
+      <details style="max-width:56ch;text-align:left;margin-top:6px">
+        <summary style="cursor:pointer;font-weight:700">Use my own Spotify app</summary>
+        <ol style="line-height:2;color:var(--text-muted);padding-left:20px">
+          <li>Open <strong>developer.spotify.com/dashboard</strong> and click
+              <strong>Create app</strong> (any name)</li>
+          <li>Paste this into <strong>Redirect URIs</strong>, then
+              <strong>click Add</strong> &mdash; typing it alone is not enough
+              and is the usual reason sign-in fails with
+              <em>&ldquo;redirect_uri: Not matching configuration&rdquo;</em>:
+            <div class="jam-input" style="margin:6px 0">
+              <input id="redirect-uri" readonly
+                     value="http://127.0.0.1:4382/login">
+              <button class="pill" id="copy-redirect">Copy</button>
+            </div>
+          </li>
+          <li>Tick <strong>Web API</strong>, agree to the terms, save, then copy
+              the Client ID</li>
+        </ol>
+        <p style="color:var(--text-muted);font-size:12.5px">
+          Note: an app registered today cannot reach Browse, New releases or an
+          artist's Popular tracks &mdash; Spotify withdrew those for new apps.
+          Everything else works.
+        </p>
+        <div class="jam-input">
+          <input id="client-id" placeholder="Paste your Client ID"
+                 spellcheck="false" autocomplete="off">
+          <button class="pill accent" id="client-save">Save</button>
+        </div>
+      </details>
+
       ${
         configured
           ? `<p style="color:var(--text-muted)">A Client ID is saved but not yet
@@ -325,6 +351,21 @@ function renderBrowsingSetup(content) {
       }
       <button class="pill" id="skip-browsing">Skip &mdash; just use playback</button>
     </div>`;
+
+  $("#copy-redirect").onclick = async () => {
+    const field = $("#redirect-uri");
+    try {
+      await navigator.clipboard.writeText(field.value);
+      toast("Redirect URI copied \u2014 remember to click Add in Spotify");
+    } catch {
+      field.select();
+    }
+  };
+
+  // Retrying uses the bundled app again, which is all someone needs once
+  // they have been added to its listener list.
+  $("#browse-retry").onclick = () => call({ cmd: "login" }).catch(() => {});
+
 
   const submit = async () => {
     const clientId = $("#client-id").value.trim();
@@ -499,6 +540,13 @@ function highlightLyrics() {
 /** Newest first. The top entry is what the bell and the post-update note
  *  show, and the only one expanded by default in Settings. */
 const CHANGELOG = [
+  {
+    v: "0.2.3",
+    d: "16 Aug 2026",
+    notes: [
+      "Clearer setup when browsing is not yet available: a Retry button, a copyable redirect address, and a warning that Spotify discards it unless you click Add",
+    ],
+  },
   {
     v: "0.2.2",
     d: "16 Aug 2026",
