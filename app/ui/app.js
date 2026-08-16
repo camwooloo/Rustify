@@ -555,6 +555,15 @@ function highlightLyrics() {
  *  show, and the only one expanded by default in Settings. */
 const CHANGELOG = [
   {
+    v: "0.2.7",
+    d: "16 Aug 2026",
+    notes: [
+      "The ‘Starting the player’ strip now disappears once the player is up, instead of sitting there permanently",
+      "Starting a Jam works while you are already in someone else’s — Rustify leaves theirs first, and the panel now names whose Jam you are in",
+      "Fixed Jam failing outright when Spotify returned both of two session flags",
+    ],
+  },
+  {
     v: "0.2.6",
     d: "16 Aug 2026",
     notes: [
@@ -2049,8 +2058,15 @@ $("#btn-jam").onclick = async (e) => {
     const active = jam?.active;
     pop.innerHTML = `
       <h3>Jam<span class="experimental">Experimental</span></h3>
-      <p class="hint">Listen together in real time. Jam uses a private Spotify
-      API with no public support, so it can break without warning.</p>
+      <p class="hint">${
+        active && !jam.isHost
+          ? `You're in ${esc(
+              (jam.participants || []).find((p) => p.isHost)?.displayName ||
+                "someone else"
+            )}'s Jam.`
+          : "Listen together in real time."
+      } Jam uses a private Spotify API with no public support, so it can break
+      without warning.</p>
       ${
         active
           ? `${(jam.participants || [])
@@ -2065,6 +2081,10 @@ $("#btn-jam").onclick = async (e) => {
               )
               .join("")}
              ${
+               // Show the link whenever there is one. Spotify's ownership
+               // flag is not dependable — a session we just created came back
+               // with isHost false — and gating on it would hide the very
+               // link the host needs to share.
                jam.joinUrl
                  ? `<div class="jam-input">
                       <input id="jam-link" readonly value="${esc(jam.joinUrl)}">
@@ -2072,7 +2092,14 @@ $("#btn-jam").onclick = async (e) => {
                     </div>`
                  : ""
              }
-             <div class="jam-input"><button class="pill" id="jam-leave">Leave Jam</button></div>`
+             <div class="jam-input">
+               <button class="pill" id="jam-leave">Leave Jam</button>
+               ${
+                 jam.isHost
+                   ? ""
+                   : `<button class="pill accent" id="jam-start">Start your own</button>`
+               }
+             </div>`
           : `<div class="jam-input">
                <button class="pill accent" id="jam-start">Start a Jam</button>
              </div>

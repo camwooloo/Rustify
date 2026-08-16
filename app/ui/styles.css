@@ -45,6 +45,14 @@
   padding: 0;
 }
 
+/* Any `display` declaration beats the [hidden] attribute, so an element given
+   `display: flex` stays on screen no matter what the markup says. That is why
+   the "Starting the player" strip never went away, and earlier why a closed
+   queue rail was still laid out. One rule fixes the whole class. */
+[hidden] {
+  display: none !important;
+}
+
 html,
 body {
   height: 100%;

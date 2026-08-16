@@ -58,8 +58,11 @@ struct RawSession {
     join_session_token: Option<String>,
     join_session_url: Option<String>,
     session_owner_id: Option<String>,
-    #[serde(alias = "active")]
+    /// Whether *we* own the session. Distinct from `active`, which says the
+    /// session itself is live — aliasing the two made serde reject any
+    /// response carrying both with "duplicate field".
     is_session_owner: Option<bool>,
+    active: Option<bool>,
     session_members: Vec<RawMember>,
 }
 
@@ -101,8 +104,11 @@ impl RawSession {
             .collect::<Vec<_>>();
 
         // A session with an id but no members is a stale shell; treat it as
-        // inactive so the UI does not show an empty Jam panel.
-        let active = self.session_id.is_some() && !participants.is_empty();
+        // inactive so the UI does not show an empty Jam panel. When the
+        // service states it explicitly, believe it.
+        let active = self.active.unwrap_or(true)
+            && self.session_id.is_some()
+            && !participants.is_empty();
 
         JamState {
             active,
@@ -174,6 +180,16 @@ impl JamClient {
     /// returns 405. That is not a typo: the service treats it as "fetch my
     /// session, making one if absent".
     pub async fn create(&self) -> Result<JamState> {
+        // `current_or_new` returns the session you are *already in*, so while
+        // you are a guest in someone else's Jam it would hand that one back
+        // and "Start a Jam" would appear to do nothing. Leave first so the
+        // button means what it says.
+        let existing = self.current().await.unwrap_or_default();
+        if existing.active && !existing.is_host {
+            debug!("leaving the current jam before hosting a new one");
+            let _ = self.leave().await;
+        }
+
         let raw = self.call(Method::GET, endpoints::CURRENT_OR_NEW).await?;
         let state = raw.into_state(&self.self_user());
         if state.join_url.is_none() {
@@ -426,6 +442,19 @@ mod tests {
         let wrapped = format!(r#"{{"session":{bare}}}"#);
         let state2 = parse_session(&wrapped).unwrap().into_state("me");
         assert_eq!(state2.session_id, state.session_id);
+    }
+
+    /// Regression: the service sends both `active` and `is_session_owner`.
+    /// Aliasing one to the other made serde reject the whole response.
+    #[test]
+    fn a_session_carrying_both_active_and_owner_flags_parses() {
+        let body = r#"{"session_id":"s1","active":true,"is_session_owner":false,
+            "session_owner_id":"host","session_members":[
+              {"id":"host","display_name":"Cam"},{"id":"me","display_name":"Jess"}]}"#;
+        let state = parse_session(body).unwrap().into_state("me");
+        assert!(state.active);
+        assert!(!state.is_host, "we are a guest, not the owner");
+        assert_eq!(state.participants.len(), 2);
     }
 
     #[test]
