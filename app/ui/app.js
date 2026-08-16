@@ -500,6 +500,15 @@ function highlightLyrics() {
  *  show, and the only one expanded by default in Settings. */
 const CHANGELOG = [
   {
+    v: "0.2.1",
+    d: "16 Aug 2026",
+    notes: [
+      "New Look: an optional redesigned interface, switchable from the top of Settings",
+      "Jam works again — creating a session was using the wrong request method, and the share link was an internal address rather than one you can send to a friend",
+      "Fixed the updater comparing against the wrong version number, which would have offered an update you already had",
+    ],
+  },
+  {
     v: "0.2.0",
     d: "16 Aug 2026",
     notes: [
