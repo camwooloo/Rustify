@@ -14,7 +14,9 @@ const { listen } = window.__TAURI__.event;
 const appWindow = window.__TAURI__.window.getCurrentWindow();
 document.getElementById("win-min").onclick = () => appWindow.minimize();
 document.getElementById("win-max").onclick = () => appWindow.toggleMaximize();
-document.getElementById("win-close").onclick = () => appWindow.close();
+// Hides rather than quits: the player keeps going and the tray icon stays.
+// Quit properly from the tray menu.
+document.getElementById("win-close").onclick = () => appWindow.hide();
 
 /* Dragging is driven explicitly rather than with data-tauri-drag-region.
    The bar is a grid whose children cover it completely, so the attribute on
@@ -552,6 +554,15 @@ function highlightLyrics() {
 /** Newest first. The top entry is what the bell and the post-update note
  *  show, and the only one expanded by default in Settings. */
 const CHANGELOG = [
+  {
+    v: "0.2.6",
+    d: "16 Aug 2026",
+    notes: [
+      "Closing the window now keeps Rustify in the tray instead of quitting, so you can still skip and pause while it plays",
+      "Launching Rustify again brings the existing window back rather than starting a second copy",
+      "Fixed song rows rendering enormously tall in both themes",
+    ],
+  },
   {
     v: "0.2.5",
     d: "16 Aug 2026",

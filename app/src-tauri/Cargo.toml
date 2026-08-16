@@ -16,6 +16,7 @@ tauri-build = { version = "2", features = [] }
 spotify-proto.workspace = true
 
 tauri = { version = "2", features = ["tray-icon", "image-png"] }
+tauri-plugin-single-instance = "2"
 tokio.workspace = true
 reqwest = { version = "0.12", default-features = false, features = [
     "native-tls",

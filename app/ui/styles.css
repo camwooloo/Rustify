@@ -747,7 +747,33 @@ body.resizing * { pointer-events: none; }
 
 .track-row { color: var(--text-dim); transition: 0.14s var(--ease); }
 .track-row:hover { background: var(--glass-2); }
-.track-row .idx { text-align: right; font-variant-numeric: tabular-nums; }
+
+.track-row .idx {
+  position: relative;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The hover play affordance. Both rules matter: without an explicit size the
+   inline SVG falls back to the default replaced-element box (300x150) and
+   inflates every row to match. */
+.track-row .idx-play { display: none; }
+
+.track-row .idx-play svg {
+  width: 13px;
+  height: 13px;
+  fill: var(--text);
+}
+
+.track-row:hover .idx { color: transparent; }
+
+.track-row:hover .idx-play {
+  display: block;
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+}
 
 .track-row .cell-title {
   display: flex;

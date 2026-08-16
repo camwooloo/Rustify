@@ -14,6 +14,7 @@ mod update;
 use std::sync::Arc;
 
 use serde_json::Value;
+use tauri::Manager;
 use tracing_subscriber::EnvFilter;
 
 use crate::link::DaemonLink;
@@ -71,6 +72,16 @@ fn main() {
     let daemon_link = DaemonLink::new(port);
 
     tauri::Builder::default()
+        // Must be registered first. Closing the window only hides it, so a
+        // second launch would otherwise start a whole new app — and a second
+        // tray icon — while the first sat hidden.
+        .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.unminimize();
+                let _ = window.show();
+                let _ = window.set_focus();
+            }
+        }))
         .manage(daemon_link.clone())
         .setup(move |app| {
             let handle = app.handle().clone();
@@ -87,6 +98,14 @@ fn main() {
                 link::run(link, handle).await;
             });
             Ok(())
+        })
+        .on_window_event(|window, event| {
+            // Hide rather than exit: the player keeps running, and the tray
+            // icon is the only way to control it once the window is gone.
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                api.prevent_close();
+                let _ = window.hide();
+            }
         })
         .invoke_handler(tauri::generate_handler![
             call,
