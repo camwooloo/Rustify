@@ -210,6 +210,8 @@ function syncNav() {
     .querySelectorAll("[data-nav]")
     .forEach((b) => b.classList.toggle("active", b.dataset.nav === view.name));
   $("#btn-home").classList.toggle("on", view.name === "home");
+  // Lit while the lyrics view is open, so the toggle reads as a toggle.
+  $("#btn-lyrics").classList.toggle("on", view.name === "lyrics");
 }
 
 /* ------------------------------------------------------------ rendering */
@@ -554,6 +556,14 @@ function highlightLyrics() {
 /** Newest first. The top entry is what the bell and the post-update note
  *  show, and the only one expanded by default in Settings. */
 const CHANGELOG = [
+  {
+    v: "0.3.6",
+    d: "16 Aug 2026",
+    notes: [
+      "The lyrics button works again — its click handler had been lost in an earlier change, leaving the button inert even though the lyrics view behind it was fine",
+      "The lyrics button now lights up while lyrics are open, and uses a clearer microphone icon",
+    ],
+  },
   {
     v: "0.3.5",
     d: "16 Aug 2026",
@@ -1734,6 +1744,11 @@ document.querySelectorAll(".rail-tab").forEach((b) => {
 
 $("#rail-close").onclick = () => setRail(false);
 $("#btn-queue").onclick = () => setRail();
+
+// Toggles the lyrics view. This handler was lost in an earlier edit, which
+// left the button inert even though the view behind it still worked.
+$("#btn-lyrics").onclick = () =>
+  navigate(view.name === "lyrics" ? "home" : "lyrics");
 
 /* ------------------------------------------------------ context menu */
 
