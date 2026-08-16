@@ -342,22 +342,36 @@ impl Daemon {
 
             SetWebClientId { client_id } => {
                 let client_id = client_id.trim().to_string();
-                if client_id.is_empty() {
-                    return Err(anyhow!("the Client ID is empty"));
-                }
-                // Spotify client ids are 32 hex characters; catching this here
-                // beats a confusing "invalid client" page in the browser.
-                if client_id.len() != 32 || !client_id.chars().all(|c| c.is_ascii_hexdigit()) {
+
+                // Empty means "use the app Rustify ships with". Without this
+                // there was no way back: anyone who had entered their own id
+                // was stuck with it even after being added to Rustify's app.
+                let reset = client_id.is_empty();
+
+                if !reset
+                    && (client_id.len() != 32
+                        || !client_id.chars().all(|c| c.is_ascii_hexdigit()))
+                {
+                    // Spotify client ids are 32 hex characters; catching this
+                    // here beats a confusing "invalid client" page in the
+                    // browser.
                     return Err(anyhow!(
                         "that doesn't look like a Client ID (expected 32 hex characters)"
                     ));
                 }
 
                 // Merge, so setting a client id never wipes saved settings.
+                // Storing empty lets the bundled default keep applying.
                 let mut cfg = crate::config::load();
                 cfg.web_client_id = client_id.clone();
                 crate::config::save(&cfg).context("saving the client id")?;
 
+                // The cached token belongs to whichever app was in use before,
+                // so it has to go or the old one would keep being used.
+                let effective = crate::config::load().web_client_id;
+                auth::clear_web_token().ok();
+
+                let client_id = effective;
                 *self.web_client_id.write().await = Some(client_id.clone());
 
                 {

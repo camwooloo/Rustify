@@ -18,7 +18,7 @@ use std::path::PathBuf;
 /// top-tracks, all of which return 403 for any app registered today.
 ///
 /// Note the ceiling: while the app sits in Development mode Spotify allows at
-/// most 25 listeners, each added by hand in the dashboard. Anyone else must
+/// most 5 listeners, each added by hand in the dashboard. Anyone else must
 /// supply their own id in Settings, which still works.
 pub const DEFAULT_WEB_CLIENT_ID: &str = "25a4b61276454466909f5ffc1a5c0b47";
 

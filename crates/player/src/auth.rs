@@ -173,6 +173,18 @@ pub fn save_token(profile: &Profile, token: &StoredToken) -> Result<()> {
     Ok(())
 }
 
+/// Remove only the browsing token, leaving the streaming session signed in.
+///
+/// Used when switching which Spotify app browsing runs against: the cached
+/// token belongs to the previous app and would otherwise be reused.
+pub fn clear_web_token() -> Result<()> {
+    let path = cache_path(&Profile::web(String::new()))?;
+    if path.exists() {
+        std::fs::remove_file(&path)?;
+    }
+    Ok(())
+}
+
 /// Remove every cached token. Used by sign-out.
 pub fn clear_token() -> Result<()> {
     for profile in [Profile::streaming(), Profile::web(String::new())] {

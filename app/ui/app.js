@@ -302,7 +302,7 @@ function renderBrowsingSetup(content) {
       <p style="max-width:56ch">
         Playback is working. Search, playlists and your library need Spotify to
         recognise you on Rustify's app &mdash; and Spotify caps that app at
-        <strong>25 listeners</strong>, added by hand.
+        <strong>5 listeners</strong>, added by hand.
       </p>
       <p style="max-width:56ch;color:var(--text-muted)">
         Either ask <strong>camwooloo</strong> to add your Spotify account, then
@@ -311,6 +311,11 @@ function renderBrowsingSetup(content) {
 
       <div class="jam-input" style="width:min(520px,80vw)">
         <button class="pill accent" id="browse-retry">Retry</button>
+        ${
+          configured
+            ? `<button class="pill" id="use-bundled">Use Rustify's app</button>`
+            : ""
+        }
       </div>
 
       <details style="max-width:56ch;text-align:left;margin-top:6px">
@@ -362,9 +367,16 @@ function renderBrowsingSetup(content) {
     }
   };
 
-  // Retrying uses the bundled app again, which is all someone needs once
-  // they have been added to its listener list.
+  // Retrying uses whatever app is configured, which is all someone needs
+  // once they have been added to its listener list.
   $("#browse-retry").onclick = () => call({ cmd: "login" }).catch(() => {});
+
+  // Clears a custom Client ID and falls back to the app Rustify ships with.
+  const bundled = $("#use-bundled");
+  if (bundled) {
+    bundled.onclick = () =>
+      call({ cmd: "setWebClientId", clientId: "" }).catch(() => {});
+  }
 
 
   const submit = async () => {
@@ -540,6 +552,14 @@ function highlightLyrics() {
 /** Newest first. The top entry is what the bell and the post-update note
  *  show, and the only one expanded by default in Settings. */
 const CHANGELOG = [
+  {
+    v: "0.2.4",
+    d: "16 Aug 2026",
+    notes: [
+      "Added a way back: if you entered your own Client ID you can now switch to Rustify's app in one click, which previously was impossible without editing files by hand",
+      "Corrected the listener limit shown during setup — Spotify allows 5, not 25",
+    ],
+  },
   {
     v: "0.2.3",
     d: "16 Aug 2026",
