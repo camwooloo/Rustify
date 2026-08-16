@@ -1,0 +1,34 @@
+[package]
+name = "spotify-daemon"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "rustifyd"
+path = "src/main.rs"
+
+[[bin]]
+name = "rustify-ctl"
+path = "src/bin/spotify-ctl.rs"
+
+[dependencies]
+spotify-proto.workspace = true
+spotify-player-core.workspace = true
+spotify-web.workspace = true
+spotify-jam.workspace = true
+
+librespot-core.workspace = true
+librespot-playback.workspace = true
+
+open = "5"
+directories.workspace = true
+tokio.workspace = true
+tokio-stream.workspace = true
+futures-util.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+anyhow.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true

@@ -1,0 +1,163 @@
+//! Update check against GitHub releases.
+//!
+//! Rustify ships as two executables (window + daemon), so this deliberately
+//! does *not* hot-swap the running binary the way a single-file tool can.
+//! It downloads the published installer and hands off to it, which replaces
+//! both halves and keeps the installed state consistent.
+
+use anyhow::{anyhow, Context, Result};
+use serde::{Deserialize, Serialize};
+use tracing::{debug, info};
+
+const REPO: &str = "camwooloo/Rustify";
+const CURRENT: &str = env!("CARGO_PKG_VERSION");
+const UA: &str = "Rustify-Updater";
+
+#[derive(Debug, Clone, Serialize)]
+pub struct UpdateInfo {
+    pub version: String,
+    pub url: String,
+    pub notes: String,
+}
+
+#[derive(Deserialize)]
+struct Release {
+    #[serde(default)]
+    tag_name: String,
+    #[serde(default)]
+    body: String,
+    #[serde(default)]
+    draft: bool,
+    #[serde(default)]
+    prerelease: bool,
+    #[serde(default)]
+    assets: Vec<Asset>,
+}
+
+#[derive(Deserialize)]
+struct Asset {
+    #[serde(default)]
+    name: String,
+    #[serde(default)]
+    browser_download_url: String,
+}
+
+/// Compare dotted version strings ("0.3.1" > "0.3.0").
+fn is_newer(remote: &str, current: &str) -> bool {
+    let parse = |s: &str| {
+        s.trim_start_matches('v')
+            .split('.')
+            .filter_map(|p| p.trim().parse::<u32>().ok())
+            .collect::<Vec<_>>()
+    };
+    let (a, b) = (parse(remote), parse(current));
+    for i in 0..a.len().max(b.len()) {
+        let (x, y) = (
+            a.get(i).copied().unwrap_or(0),
+            b.get(i).copied().unwrap_or(0),
+        );
+        if x != y {
+            return x > y;
+        }
+    }
+    false
+}
+
+/// Ask GitHub for the latest release, if it is newer than this build.
+///
+/// Returns `None` for "nothing to do", including the perfectly normal cases
+/// of no network and a repo with no releases yet.
+pub async fn check() -> Option<UpdateInfo> {
+    let client = reqwest::Client::builder().user_agent(UA).build().ok()?;
+
+    let release: Release = client
+        .get(format!("https://api.github.com/repos/{REPO}/releases/latest"))
+        .header("Accept", "application/vnd.github+json")
+        .send()
+        .await
+        .ok()?
+        .json()
+        .await
+        .ok()?;
+
+    if release.draft || release.prerelease {
+        return None;
+    }
+
+    let version = release.tag_name.trim_start_matches('v').to_string();
+    if !is_newer(&version, CURRENT) {
+        debug!("already on the latest version ({CURRENT})");
+        return None;
+    }
+
+    // Prefer the installer; it carries both executables.
+    let asset = release
+        .assets
+        .iter()
+        .find(|a| a.name.ends_with("-setup.exe") || a.name.ends_with(".msi"))
+        .or_else(|| release.assets.iter().find(|a| a.name.ends_with(".exe")))?;
+
+    info!("update available: v{version}");
+    Some(UpdateInfo {
+        version,
+        url: asset.browser_download_url.clone(),
+        notes: release.body.clone(),
+    })
+}
+
+/// Download the installer and launch it, then let the caller exit.
+pub async fn apply(url: &str) -> Result<()> {
+    // Only ever fetch from the project's own release host.
+    if !url.starts_with("https://github.com/") && !url.starts_with("https://objects.githubusercontent.com/")
+    {
+        return Err(anyhow!("refusing to download from an unexpected host"));
+    }
+
+    let client = reqwest::Client::builder()
+        .user_agent(UA)
+        .build()
+        .context("building the update client")?;
+
+    let bytes = client
+        .get(url)
+        .send()
+        .await
+        .context("downloading the update")?
+        .error_for_status()
+        .context("the download was rejected")?
+        .bytes()
+        .await
+        .context("reading the update")?;
+
+    // A real build is well over a megabyte; this catches error pages saved
+    // as if they were the installer.
+    if bytes.len() < 500_000 {
+        return Err(anyhow!("the downloaded file looks too small to be real"));
+    }
+
+    let path = std::env::temp_dir().join("Rustify-update-setup.exe");
+    std::fs::write(&path, &bytes)
+        .with_context(|| format!("writing {}", path.display()))?;
+
+    std::process::Command::new(&path)
+        .spawn()
+        .with_context(|| format!("launching {}", path.display()))?;
+
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::is_newer;
+
+    #[test]
+    fn version_comparison_handles_the_v_prefix_and_short_forms() {
+        assert!(is_newer("0.3.1", "0.3.0"));
+        assert!(is_newer("v1.0.0", "0.9.9"));
+        assert!(is_newer("0.2", "0.1.9"));
+        assert!(!is_newer("0.3.0", "0.3.0"));
+        assert!(!is_newer("0.2.9", "0.3.0"));
+        // Garbage must never look like an upgrade.
+        assert!(!is_newer("", "0.1.0"));
+    }
+}

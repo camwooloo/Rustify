@@ -1,0 +1,56 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Rustify",
+  "version": "0.2.0",
+  "identifier": "dev.spotify-rust.app",
+  "build": {
+    "frontendDist": "../ui"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "title": "Rustify",
+        "width": 1280,
+        "height": 800,
+        "minWidth": 780,
+        "minHeight": 540,
+        "resizable": true,
+        "decorations": false,
+        "theme": "Dark",
+        "backgroundColor": "#000000"
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; img-src 'self' https://i.scdn.co https://*.scdn.co https://*.spotifycdn.com data:; style-src 'self' 'unsafe-inline'; script-src 'self'"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": [
+      "nsis"
+    ],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.ico",
+      "icons/icon.png"
+    ],
+    "resources": {
+      "binaries/rustifyd.exe": "rustifyd.exe",
+      "binaries/rustify-ctl.exe": "rustify-ctl.exe"
+    },
+    "shortDescription": "A fast Spotify client in Rust",
+    "longDescription": "Rustify plays Spotify from a lightweight background process, so music keeps going with the window closed.",
+    "publisher": "camwooloo",
+    "copyright": "camwooloo",
+    "category": "Music",
+    "windows": {
+      "nsis": {
+        "installMode": "currentUser",
+        "displayLanguageSelector": false
+      }
+    }
+  }
+}

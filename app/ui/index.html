@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Rustify</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <!-- Icons defined once and referenced with <use>, so the markup the
+         script generates stays small. -->
+    <svg xmlns="http://www.w3.org/2000/svg" style="display: none">
+      <symbol id="i-home" viewBox="0 0 24 24">
+        <path d="M12.5 3.247a1 1 0 0 0-1 0L4 7.577V20h4.5v-6a1 1 0 0 1 1-1h5a1 1 0 0 1 1 1v6H20V7.577l-7.5-4.33z" />
+      </symbol>
+      <symbol id="i-search" viewBox="0 0 24 24">
+        <path d="M10.533 1.279c-5.18 0-9.407 4.14-9.407 9.279s4.226 9.279 9.407 9.279c2.234 0 4.29-.77 5.907-2.058l4.353 4.353a1 1 0 1 0 1.414-1.414l-4.344-4.344a9.157 9.157 0 0 0 2.077-5.816c0-5.14-4.226-9.28-9.407-9.28zm-7.407 9.279c0-4.006 3.302-7.28 7.407-7.28s7.407 3.274 7.407 7.28-3.302 7.279-7.407 7.279-7.407-3.273-7.407-7.28z" />
+      </symbol>
+      <symbol id="i-library" viewBox="0 0 24 24">
+        <path d="M3 22a1 1 0 0 1-1-1V3a1 1 0 0 1 2 0v18a1 1 0 0 1-1 1zM15.5 2.134A1 1 0 0 0 14 3v18a1 1 0 0 0 1.5.866l13-7.5a1 1 0 0 0 0-1.732l-13-7.5zM9 2a1 1 0 0 0-1 1v18a1 1 0 1 0 2 0V3a1 1 0 0 0-1-1z" />
+      </symbol>
+      <symbol id="i-play" viewBox="0 0 24 24">
+        <path d="M7.05 3.606l13.49 7.788a.7.7 0 0 1 0 1.212L7.05 20.394A.7.7 0 0 1 6 19.788V4.212a.7.7 0 0 1 1.05-.606z" />
+      </symbol>
+      <symbol id="i-pause" viewBox="0 0 24 24">
+        <path d="M5.7 3a.7.7 0 0 0-.7.7v16.6a.7.7 0 0 0 .7.7h3.6a.7.7 0 0 0 .7-.7V3.7a.7.7 0 0 0-.7-.7H5.7zm9 0a.7.7 0 0 0-.7.7v16.6a.7.7 0 0 0 .7.7h3.6a.7.7 0 0 0 .7-.7V3.7a.7.7 0 0 0-.7-.7h-3.6z" />
+      </symbol>
+      <symbol id="i-prev" viewBox="0 0 16 16">
+        <path d="M3.3 1a.7.7 0 0 1 .7.7v5.15l9.95-5.744a.7.7 0 0 1 1.05.606v12.575a.7.7 0 0 1-1.05.607L4 9.149V14.3a.7.7 0 0 1-.7.7H1.7a.7.7 0 0 1-.7-.7V1.7a.7.7 0 0 1 .7-.7h1.6z" />
+      </symbol>
+      <symbol id="i-next" viewBox="0 0 16 16">
+        <path d="M12.7 1a.7.7 0 0 0-.7.7v5.15L2.05 1.106A.7.7 0 0 0 1 1.712v12.575a.7.7 0 0 0 1.05.607L12 9.149V14.3a.7.7 0 0 0 .7.7h1.6a.7.7 0 0 0 .7-.7V1.7a.7.7 0 0 0-.7-.7h-1.6z" />
+      </symbol>
+      <symbol id="i-shuffle" viewBox="0 0 16 16">
+        <path d="M13.151.922a.75.75 0 1 0-1.06 1.06L13.109 3H11.16a3.75 3.75 0 0 0-2.873 1.34l-6.173 7.356A2.25 2.25 0 0 1 .39 12.5H0V14h.391a3.75 3.75 0 0 0 2.873-1.34l6.173-7.356a2.25 2.25 0 0 1 1.724-.804h1.947l-1.017 1.018a.75.75 0 0 0 1.06 1.06L15.98 3.75 13.15.922zM.391 3.5H0V2h.391c1.109 0 2.16.49 2.873 1.34L4.89 5.277l-.979 1.167-1.796-2.14A2.25 2.25 0 0 0 .39 3.5z" />
+        <path d="M7.5 10.723l.98-1.167.957 1.14a2.25 2.25 0 0 0 1.724.804h1.947l-1.017-1.018a.75.75 0 1 1 1.06-1.06l2.829 2.828-2.829 2.828a.75.75 0 1 1-1.06-1.06L13.109 13H11.16a3.75 3.75 0 0 1-2.873-1.34l-.787-.938z" />
+      </symbol>
+      <symbol id="i-repeat" viewBox="0 0 16 16">
+        <path d="M0 4.75A3.75 3.75 0 0 1 3.75 1h8.5A3.75 3.75 0 0 1 16 4.75v5a3.75 3.75 0 0 1-3.75 3.75H9.81l1.018 1.018a.75.75 0 1 1-1.06 1.06L6.939 12.75l2.828-2.828a.75.75 0 1 1 1.061 1.06L9.811 12h2.439a2.25 2.25 0 0 0 2.25-2.25v-5a2.25 2.25 0 0 0-2.25-2.25h-8.5A2.25 2.25 0 0 0 1.5 4.75v5A2.25 2.25 0 0 0 3.75 12H5v1.5H3.75A3.75 3.75 0 0 1 0 9.75v-5z" />
+      </symbol>
+      <symbol id="i-repeat1" viewBox="0 0 16 16">
+        <path d="M0 4.75A3.75 3.75 0 0 1 3.75 1h8.5A3.75 3.75 0 0 1 16 4.75v5a3.75 3.75 0 0 1-3.75 3.75H9.81l1.018 1.018a.75.75 0 1 1-1.06 1.06L6.939 12.75l2.828-2.828a.75.75 0 1 1 1.061 1.06L9.811 12h2.439a2.25 2.25 0 0 0 2.25-2.25v-5a2.25 2.25 0 0 0-2.25-2.25h-8.5A2.25 2.25 0 0 0 1.5 4.75v5A2.25 2.25 0 0 0 3.75 12H5v1.5H3.75A3.75 3.75 0 0 1 0 9.75v-5z" />
+        <path d="M8.9 5.5H7.5v-1h2.4v6H8.9v-5z" />
+      </symbol>
+      <symbol id="i-volume" viewBox="0 0 16 16">
+        <path d="M9.741.85a.8.8 0 0 1 .375.65v13a.8.8 0 0 1-1.125.73L3.85 12H1.5A1.5 1.5 0 0 1 0 10.5v-5A1.5 1.5 0 0 1 1.5 4h2.35L8.991.12a.8.8 0 0 1 .75-.07zM6.708 3.271L4.061 5.53a.5.5 0 0 1-.325.12H1.5v4.7h2.236a.5.5 0 0 1 .325.12l2.647 2.259V3.271z" />
+        <path d="M11.5 4.5a.75.75 0 0 1 1.06 0 5 5 0 0 1 0 7.07.75.75 0 1 1-1.06-1.06 3.5 3.5 0 0 0 0-4.95.75.75 0 0 1 0-1.06z" />
+      </symbol>
+      <symbol id="i-devices" viewBox="0 0 16 16">
+        <path d="M6 3a3 3 0 0 1 3-3h4a3 3 0 0 1 3 3v10a3 3 0 0 1-3 3H9a3 3 0 0 1-3-3V3zm3-1.5A1.5 1.5 0 0 0 7.5 3v10A1.5 1.5 0 0 0 9 14.5h4a1.5 1.5 0 0 0 1.5-1.5V3A1.5 1.5 0 0 0 13 1.5H9z" />
+        <path d="M3 5a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h1.5v1.5H3a2.5 2.5 0 0 1-2.5-2.5V6A2.5 2.5 0 0 1 3 3.5h1.5V5H3z" />
+      </symbol>
+      <symbol id="i-jam" viewBox="0 0 16 16">
+        <path d="M5.5 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6zm0-1.5a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zM11.5 8a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5zm0-1.5a1 1 0 1 1 0-2 1 1 0 0 1 0 2zM0 14.5C0 11.462 2.462 9 5.5 9s5.5 2.462 5.5 5.5V15H0v-.5zm1.55-.5h7.9a4.001 4.001 0 0 0-7.9 0zM12 15h4v-.5c0-2.033-1.36-3.748-3.222-4.287a7.06 7.06 0 0 1 1.03 1.51A3.002 3.002 0 0 1 14.5 14v1z" />
+      </symbol>
+      <symbol id="i-heart" viewBox="0 0 16 16">
+        <path d="M8 2.748l-.717-.737C5.6.281 2.514.878 1.4 3.053c-.523 1.023-.641 2.5.314 4.385.92 1.815 2.834 3.989 6.286 6.357 3.452-2.368 5.365-4.542 6.286-6.357.955-1.886.838-3.362.314-4.385C13.486.878 10.4.28 8.717 2.01L8 2.748z" />
+      </symbol>
+      <symbol id="i-heart-o" viewBox="0 0 16 16">
+        <path d="M1.69 2A4.582 4.582 0 0 1 8 2.023 4.583 4.583 0 0 1 11.88.817h.002a4.618 4.618 0 0 1 3.782 3.65v.003a4.543 4.543 0 0 1-1.011 3.84L9.35 14.629a1.765 1.765 0 0 1-2.093.464 1.762 1.762 0 0 1-.605-.463L1.348 8.309A4.582 4.582 0 0 1 1.689 2zm3.158-.508A3.082 3.082 0 0 0 2.49 7.02l5.306 6.322a.264.264 0 0 0 .401 0l5.306-6.322a3.043 3.043 0 0 0 .678-2.573 3.118 3.118 0 0 0-2.551-2.463 3.079 3.079 0 0 0-2.612.816l-.007.007a1.501 1.501 0 0 1-2.045 0l-.006-.007a3.082 3.082 0 0 0-2.012-.808z" />
+      </symbol>
+      <symbol id="i-back" viewBox="0 0 16 16">
+        <path d="M11.03 3.29a.75.75 0 0 1 0 1.06L7.38 8l3.65 3.65a.75.75 0 1 1-1.06 1.06L5.26 8l4.71-4.71a.75.75 0 0 1 1.06 0z" />
+      </symbol>
+      <symbol id="i-dots" viewBox="0 0 24 24">
+        <circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/>
+        <circle cx="19" cy="12" r="1.8"/>
+      </symbol>
+      <symbol id="i-bell" viewBox="0 0 16 16">
+        <path d="M8 1.5a4.5 4.5 0 0 0-4.5 4.5v2.4L2.2 11.1a.75.75 0 0 0 .65 1.15h10.3a.75.75 0 0 0 .65-1.15L12.5 8.4V6A4.5 4.5 0 0 0 8 1.5zM5 6a3 3 0 1 1 6 0v2.6c0 .14.04.27.1.39l.83 1.51H4.07l.83-1.51c.06-.12.1-.25.1-.39V6z"/>
+        <path d="M6.5 13.5a1.5 1.5 0 0 0 3 0h-3z"/>
+      </symbol>
+      <symbol id="i-browse" viewBox="0 0 16 16">
+        <path d="M2 3.75A1.75 1.75 0 0 1 3.75 2h8.5A1.75 1.75 0 0 1 14 3.75v8.5A1.75 1.75 0 0 1 12.25 14h-8.5A1.75 1.75 0 0 1 2 12.25v-8.5zm1.75-.25a.25.25 0 0 0-.25.25v8.5c0 .14.11.25.25.25h8.5a.25.25 0 0 0 .25-.25v-8.5a.25.25 0 0 0-.25-.25h-8.5z"/>
+        <path d="M5 5.75A.75.75 0 0 1 5.75 5h4.5a.75.75 0 0 1 0 1.5h-4.5A.75.75 0 0 1 5 5.75zm0 2.5A.75.75 0 0 1 5.75 7.5h4.5a.75.75 0 0 1 0 1.5h-4.5A.75.75 0 0 1 5 8.25z"/>
+      </symbol>
+      <symbol id="i-min" viewBox="0 0 24 24">
+        <path d="M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/>
+      </symbol>
+      <symbol id="i-max" viewBox="0 0 24 24">
+        <rect x="5" y="5" width="14" height="14" rx="2" stroke="currentColor"
+              stroke-width="2" fill="none"/>
+      </symbol>
+      <symbol id="i-x" viewBox="0 0 24 24">
+        <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" fill="none"/>
+      </symbol>
+      <symbol id="i-lyrics" viewBox="0 0 16 16">
+        <path d="M13.426 2.574a2.53 2.53 0 0 0-3.586 0l-.451.45a3.53 3.53 0 0 0 0 4.994l.181.181a.75.75 0 0 0 1.06-1.06l-.18-.181a2.03 2.03 0 0 1 0-2.873l.45-.45a1.03 1.03 0 0 1 1.465 1.464l-1.678 1.678a.75.75 0 1 0 1.06 1.06l1.679-1.678a2.53 2.53 0 0 0 0-3.585z"/>
+        <path d="M2 3.75A.75.75 0 0 1 2.75 3h5.5a.75.75 0 0 1 0 1.5h-5.5A.75.75 0 0 1 2 3.75zm0 4A.75.75 0 0 1 2.75 7h3.5a.75.75 0 0 1 0 1.5h-3.5A.75.75 0 0 1 2 7.75zm0 4a.75.75 0 0 1 .75-.75h6.5a.75.75 0 0 1 0 1.5h-6.5a.75.75 0 0 1-.75-.75z"/>
+      </symbol>
+      <symbol id="i-mic" viewBox="0 0 16 16">
+        <path d="M8 1a2.5 2.5 0 0 0-2.5 2.5v4a2.5 2.5 0 0 0 5 0v-4A2.5 2.5 0 0 0 8 1zM7 3.5a1 1 0 1 1 2 0v4a1 1 0 1 1-2 0v-4z"/>
+        <path d="M3.5 7a.75.75 0 0 1 .75.75 3.75 3.75 0 1 0 7.5 0 .75.75 0 0 1 1.5 0 5.25 5.25 0 0 1-4.5 5.196V14.5h2a.75.75 0 0 1 0 1.5h-5.5a.75.75 0 0 1 0-1.5h2v-1.554A5.25 5.25 0 0 1 2.75 7.75.75.75 0 0 1 3.5 7z"/>
+      </symbol>
+      <symbol id="i-queue" viewBox="0 0 16 16">
+        <path d="M15 15H1v-1.5h14V15zm0-4.5H1V9h14v1.5zm-14-7A2.5 2.5 0 0 1 3.5 1h9A2.5 2.5 0 0 1 15 3.5v2A2.5 2.5 0 0 1 12.5 8h-9A2.5 2.5 0 0 1 1 5.5v-2zm2.5-1a1 1 0 0 0-1 1v2a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1h-9z"/>
+      </symbol>
+      <symbol id="i-fwd" viewBox="0 0 16 16">
+        <path d="M4.97 3.29a.75.75 0 0 0 0 1.06L8.62 8l-3.65 3.65a.75.75 0 1 0 1.06 1.06L10.74 8 6.03 3.29a.75.75 0 0 0-1.06 0z" />
+      </symbol>
+    </svg>
+
+    <div id="app">
+      <!-- Custom titlebar: native decorations are off, so this provides the
+           drag region and window buttons. -->
+      <header id="titlebar">
+        <div class="tb-left">
+          <button class="icon-btn" id="btn-menu" title="Menu">
+            <svg><use href="#i-dots" /></svg>
+          </button>
+          <button class="icon-btn" id="nav-back" title="Back" disabled>
+            <svg><use href="#i-back" /></svg>
+          </button>
+          <button class="icon-btn" id="nav-fwd" title="Forward" disabled>
+            <svg><use href="#i-fwd" /></svg>
+          </button>
+        </div>
+
+        <div class="tb-center">
+          <button class="home-btn" id="btn-home" title="Home">
+            <svg><use href="#i-home" /></svg>
+          </button>
+          <div class="search-box">
+            <svg class="mag"><use href="#i-search" /></svg>
+            <input
+              id="search-input"
+              type="text"
+              placeholder="What do you want to play?"
+              spellcheck="false"
+            />
+            <span class="divider"></span>
+            <button class="browse-btn" id="btn-browse" title="Browse">
+              <svg><use href="#i-browse" /></svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="tb-right">
+          <button class="icon-btn" id="btn-notices" title="What's new">
+            <svg><use href="#i-bell" /></svg>
+          </button>
+          <button class="icon-btn" id="btn-jam" title="Jam">
+            <svg><use href="#i-jam" /></svg>
+          </button>
+          <button class="avatar" id="btn-account" title="Account"></button>
+          <span class="tb-sep"></span>
+          <button class="winbtn" id="win-min" title="Minimise">
+            <svg><use href="#i-min" /></svg>
+          </button>
+          <button class="winbtn" id="win-max" title="Maximise">
+            <svg><use href="#i-max" /></svg>
+          </button>
+          <button class="winbtn close" id="win-close" title="Close">
+            <svg><use href="#i-x" /></svg>
+          </button>
+        </div>
+      </header>
+
+      <div id="shell">
+      <nav id="sidebar">
+        <div class="gutter gutter-side" id="gutter-side" title="Drag to resize"></div>
+        <div class="panel library">
+          <div class="library-head">
+            <svg><use href="#i-library" /></svg>
+            <span>Your Library</span>
+          </div>
+          <div class="lib-filters">
+            <button class="chip active" data-lib="playlists">Playlists</button>
+            <button class="chip" data-lib="albums">Albums</button>
+          </div>
+          <div class="library-list" id="library-list"></div>
+        </div>
+      </nav>
+
+      <main id="main" class="panel">
+        <div id="offline" hidden class="offline-banner">
+          Not connected to the playback daemon — reconnecting…
+        </div>
+
+        <div class="content" id="content"></div>
+      </main>
+
+      <aside id="rail" class="panel" hidden>
+        <div class="gutter gutter-rail" id="gutter-rail" title="Drag to resize"></div>
+        <div class="rail-tabs">
+          <button class="rail-tab active" data-tab="queue">Queue</button>
+          <button class="rail-tab" data-tab="recent">Recently played</button>
+          <span class="spacer"></span>
+          <button class="winbtn" id="rail-close" title="Hide">
+            <svg><use href="#i-x" /></svg>
+          </button>
+        </div>
+        <div class="rail-body" id="rail-body"></div>
+      </aside>
+      </div>
+
+      <footer id="player">
+        <div class="np" id="np"></div>
+
+        <div class="controls">
+          <div class="control-row">
+            <button class="ctl" id="btn-shuffle" title="Shuffle">
+              <svg><use href="#i-shuffle" /></svg>
+            </button>
+            <button class="ctl" id="btn-prev" title="Previous">
+              <svg><use href="#i-prev" /></svg>
+            </button>
+            <button class="ctl ctl-play" id="btn-play" title="Play">
+              <svg><use href="#i-play" /></svg>
+            </button>
+            <button class="ctl" id="btn-next" title="Next">
+              <svg><use href="#i-next" /></svg>
+            </button>
+            <button class="ctl" id="btn-repeat" title="Repeat">
+              <svg><use href="#i-repeat" /></svg>
+            </button>
+          </div>
+          <div class="progress-row">
+            <span class="time" id="time-now">0:00</span>
+            <input id="seek" type="range" min="0" max="1000" value="0" />
+            <span class="time" id="time-total">0:00</span>
+          </div>
+        </div>
+
+        <div class="right-controls">
+          <button class="ctl" id="btn-lyrics" title="Lyrics">
+            <svg><use href="#i-mic" /></svg>
+          </button>
+          <button class="ctl" id="btn-queue" title="Queue">
+            <svg><use href="#i-queue" /></svg>
+          </button>
+          <button class="ctl" id="btn-devices" title="Connect to a device">
+            <svg><use href="#i-devices" /></svg>
+          </button>
+          <button class="ctl" id="btn-mute" title="Mute">
+            <svg><use href="#i-volume" /></svg>
+          </button>
+          <input id="volume" class="volume" type="range" min="0" max="65535" value="32768" />
+        </div>
+      </footer>
+
+      <div id="popovers"></div>
+    <div id="ctxmenu" hidden></div>
+      <div id="toasts"></div>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+</html>

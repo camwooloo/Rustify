@@ -1,0 +1,32 @@
+[package]
+name = "spotify-player-core"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+spotify-proto.workspace = true
+
+librespot-core.workspace = true
+librespot-playback.workspace = true
+librespot-connect.workspace = true
+librespot-metadata.workspace = true
+librespot-protocol.workspace = true
+
+oauth2 = "5"
+reqwest = { version = "0.12", default-features = false, features = [
+    "native-tls",
+    "json",
+] }
+
+tokio.workspace = true
+tokio-stream.workspace = true
+futures-util.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+anyhow.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+directories.workspace = true
+url.workspace = true

@@ -1,0 +1,14 @@
+/target
+**/*.rs.bk
+
+# Tauri build output
+/app/src-tauri/gen
+
+# Never commit tokens or cached audio
+token.json
+
+# Binaries staged for the installer; rebuilt by `cargo build --release`
+/app/src-tauri/binaries/
+
+# Tauri codegen
+/app/src-tauri/gen/

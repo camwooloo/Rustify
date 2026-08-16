@@ -1,0 +1,28 @@
+[package]
+name = "spotify-rust-app"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "rustify"
+path = "src/main.rs"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+spotify-proto.workspace = true
+
+tauri = { version = "2", features = ["tray-icon", "image-png"] }
+tokio.workspace = true
+reqwest = { version = "0.12", default-features = false, features = [
+    "native-tls",
+    "json",
+] }
+serde.workspace = true
+serde_json.workspace = true
+anyhow.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true

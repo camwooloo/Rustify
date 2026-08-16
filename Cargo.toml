@@ -1,0 +1,56 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/proto",
+    "crates/player",
+    "crates/web",
+    "crates/jam",
+    "crates/daemon",
+    "app/src-tauri",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.85"
+license = "MIT"
+
+[workspace.dependencies]
+librespot-core = "0.8"
+librespot-playback = "0.8"
+librespot-connect = "0.8"
+librespot-metadata = "0.8"
+librespot-oauth = "0.8"
+librespot-protocol = "0.8"
+
+rspotify = { version = "0.16", default-features = false, features = [
+    "client-reqwest",
+    "reqwest-native-tls",
+] }
+
+tokio = { version = "1", features = ["full"] }
+tokio-stream = "0.1"
+futures-util = "0.3"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+anyhow = "1"
+thiserror = "2"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+directories = "6"
+bytes = "1"
+url = "2"
+
+spotify-proto = { path = "crates/proto" }
+spotify-player-core = { path = "crates/player" }
+spotify-web = { path = "crates/web" }
+spotify-jam = { path = "crates/jam" }
+
+# The daemon is the thing that runs while you game. Optimise it hard, and keep
+# the binary small so startup is instant.
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+strip = true

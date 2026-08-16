@@ -1,0 +1,18 @@
+[package]
+name = "spotify-web"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+spotify-proto.workspace = true
+rspotify.workspace = true
+reqwest = { version = "0.12", default-features = false, features = ["native-tls", "json"] }
+tokio.workspace = true
+futures-util.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+anyhow.workspace = true
+tracing.workspace = true
+chrono = "0.4"
