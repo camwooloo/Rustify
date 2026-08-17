@@ -557,6 +557,14 @@ function highlightLyrics() {
  *  show, and the only one expanded by default in Settings. */
 const CHANGELOG = [
   {
+    v: "0.3.8",
+    d: "17 Aug 2026",
+    notes: [
+      "Right-clicking a song now gives you the song's own menu — Add to queue, Add to playlist, Go to song radio, Go to artist and Go to album. Every song list was handing out the menu meant for albums and playlists instead",
+      "The save entry knows whether the song is already in your library, and offers to remove it when it is",
+    ],
+  },
+  {
     v: "0.3.7",
     d: "17 Aug 2026",
     notes: [
@@ -1281,7 +1289,15 @@ function trackTable(tracks) {
   const rows = tracks
     .map((t, i) => {
       const current = state?.track?.uri && state.track.uri === t.uri;
-      return `<div class="track-row ${current ? "current" : ""}" data-play="${i}">
+      // `data-play` is the row's index, which is all the click handler needs.
+      // The right-click menu needs to know what the row *is*, though, and
+      // without these it read the index as the URI — so every song, in every
+      // list, got the menu meant for albums and playlists instead of one with
+      // "Add to queue" on it.
+      return `<div class="track-row ${current ? "current" : ""}" data-play="${i}"
+        data-uri="${esc(t.uri)}"
+        ${t.artists?.[0]?.uri ? `data-artist-uri="${esc(t.artists[0].uri)}"` : ""}
+        ${t.album?.uri ? `data-album-uri="${esc(t.album.uri)}"` : ""}>
         <div class="idx">${i + 1}<span class="idx-play">${icon("play")}</span></div>
         <div class="cell-title">
           ${art(t.coverUrl)}
@@ -1970,13 +1986,25 @@ document.addEventListener("contextmenu", (e) => {
       label: "Add to playlist\u2026",
       run: () => addToPlaylistDialog(uri),
     });
+    // The row's own heart already tracks this, optimistic updates included,
+    // so read it rather than keeping a second copy of the answer.
+    const heartBtn = row.querySelector("[data-save]");
+    const alreadySaved = heartBtn?.classList.contains("on") ?? false;
+
     items.push({
       id: "save",
-      icon: "heart",
-      label: "Save to your Liked Songs",
+      icon: alreadySaved ? "heart" : "heart-o",
+      label: alreadySaved
+        ? "Remove from your Liked Songs"
+        : "Save to your Liked Songs",
       run: async () => {
-        await call({ cmd: "setSaved", uri, saved: true });
-        toast("Saved");
+        // Let the heart do it, so the row updates the way it always does.
+        if (heartBtn) {
+          heartBtn.click();
+          return;
+        }
+        await call({ cmd: "setSaved", uri, saved: !alreadySaved });
+        toast(alreadySaved ? "Removed" : "Saved");
       },
     });
   } else {
@@ -1998,7 +2026,7 @@ document.addEventListener("contextmenu", (e) => {
   items.push({
     id: "radio",
     icon: "shuffle",
-    label: "Go to radio",
+    label: isTrack ? "Go to song radio" : "Go to radio",
     run: async () => {
       toast("Building radio\u2026");
       try {
@@ -2008,6 +2036,22 @@ document.addEventListener("contextmenu", (e) => {
       }
     },
   });
+
+  // Spotify's two most-used entries, and the reason its menu is a navigation
+  // tool rather than just a list of actions.
+  const goTo = (kind, target) => ({
+    id: `go-${kind}`,
+    icon: kind === "artist" ? "artist" : "album",
+    label: `Go to ${kind}`,
+    run: () => navigate(kind, target.split(":").pop()),
+  });
+
+  if (isTrack && row?.dataset.artistUri) {
+    items.push(goTo("artist", row.dataset.artistUri));
+  }
+  if (isTrack && row?.dataset.albumUri) {
+    items.push(goTo("album", row.dataset.albumUri));
+  }
 
   // Only offered where it makes sense: a track, inside a playlist you own.
   if (isTrack && view.name === "playlist" && currentPlaylistIsMine) {
