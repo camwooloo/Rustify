@@ -217,7 +217,10 @@ async fn watch_saved(daemon: std::sync::Arc<Daemon>) {
     let mut events = daemon.subscribe();
     loop {
         match events.recv().await {
-            Ok(Event::TrackChanged(track)) => daemon.annotate_saved(&track.uri).await,
+            Ok(Event::TrackChanged(track)) => {
+                daemon.note_played(&track.uri).await;
+                daemon.annotate_saved(&track.uri).await;
+            }
             Ok(_) => {}
             // Falling behind only means missed events, never a reason to stop.
             Err(RecvError::Lagged(n)) => warn!("saved-state watcher missed {n} events"),

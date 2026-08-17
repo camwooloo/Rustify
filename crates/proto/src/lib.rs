@@ -161,6 +161,8 @@ pub enum Command {
     GetQueue,
     /// Append a track to the active device's queue.
     AddToQueue { uri: String },
+    /// Put a track at the front of the queue, before anything already there.
+    PlayNext { uri: String },
     /// Recently played tracks, newest first.
     #[serde(rename_all = "camelCase")]
     GetRecentlyPlayed {

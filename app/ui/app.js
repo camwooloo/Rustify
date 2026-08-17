@@ -1970,16 +1970,34 @@ document.addEventListener("contextmenu", (e) => {
       label: "Play",
       run: () => call({ cmd: "loadTracks", uris: [uri], startPlaying: true }),
     });
-    items.push({
-      id: "queue",
-      icon: "queue",
-      label: "Add to queue",
-      run: async () => {
-        await call({ cmd: "addToQueue", uri });
-        toast("Added to queue");
-        if (rail) renderRail();
-      },
-    });
+    // Only meaningful while something is playing: both of these address
+    // whichever device holds the queue.
+    if (state?.track) {
+      items.push({
+        id: "playnext",
+        icon: "next",
+        label: "Play next",
+        run: async () => {
+          try {
+            await call({ cmd: "playNext", uri });
+            toast("Playing next");
+            if (rail) renderRail();
+          } catch {
+            /* the daemon already reported why */
+          }
+        },
+      });
+      items.push({
+        id: "queue",
+        icon: "queue",
+        label: "Add to queue",
+        run: async () => {
+          await call({ cmd: "addToQueue", uri });
+          toast("Added to queue");
+          if (rail) renderRail();
+        },
+      });
+    }
     items.push({
       id: "addpl",
       icon: "queue",
@@ -1988,7 +2006,7 @@ document.addEventListener("contextmenu", (e) => {
     });
     // The row's own heart already tracks this, optimistic updates included,
     // so read it rather than keeping a second copy of the answer.
-    const heartBtn = row.querySelector("[data-save]");
+    const heartBtn = row.querySelector(".heart");
     const alreadySaved = heartBtn?.classList.contains("on") ?? false;
 
     items.push({
@@ -2054,7 +2072,12 @@ document.addEventListener("contextmenu", (e) => {
   }
 
   // Only offered where it makes sense: a track, inside a playlist you own.
-  if (isTrack && view.name === "playlist" && currentPlaylistIsMine) {
+  if (
+    isTrack &&
+    row.dataset.play !== undefined &&
+    view.name === "playlist" &&
+    currentPlaylistIsMine
+  ) {
     items.push({
       id: "removepl",
       icon: "x",
@@ -2102,6 +2125,12 @@ document.addEventListener("contextmenu", (e) => {
 
 /* ------------------------------------------------------- now playing */
 
+/** Set an attribute, or remove it when there is no value to set. */
+function setOrDrop(node, attr, value) {
+  if (value) node.setAttribute(attr, value);
+  else node.removeAttribute(attr);
+}
+
 function renderNowPlaying() {
   const np = $("#np");
   const t = state?.track;
@@ -2122,8 +2151,12 @@ function renderNowPlaying() {
              : ""
          }
        </div>
-       <button class="heart ${t.saved ? "on" : ""}" id="np-heart">
+       <button class="heart ${t.saved ? "on" : ""}" id="np-heart"
+               title="${t.saved ? "Remove from your Liked Songs" : "Save to your Liked Songs"}">
          ${icon(t.saved ? "heart" : "heart-o")}
+       </button>
+       <button class="np-add" id="np-addpl" title="Add to playlist">
+         ${icon("plus")}
        </button>`
     : "";
 
@@ -2131,6 +2164,21 @@ function renderNowPlaying() {
   if (heart) {
     heart.onclick = () =>
       call({ cmd: "setSaved", uri: t.uri, saved: !t.saved });
+  }
+
+  const addpl = $("#np-addpl");
+  if (addpl) addpl.onclick = () => addToPlaylistDialog(t.uri);
+
+  // The bar is a track like any other, so right-clicking it should offer the
+  // track menu rather than the page one. These are what the menu reads.
+  if (t) {
+    np.setAttribute("data-uri", t.uri);
+    setOrDrop(np, "data-artist-uri", t.artists?.[0]?.uri);
+    setOrDrop(np, "data-album-uri", t.album?.uri);
+  } else {
+    ["data-uri", "data-artist-uri", "data-album-uri"].forEach((a) =>
+      np.removeAttribute(a)
+    );
   }
 
   $("#btn-play").innerHTML = icon(state?.playing ? "pause" : "play");

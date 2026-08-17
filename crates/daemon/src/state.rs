@@ -1,6 +1,7 @@
 //! Shared daemon state and the command handlers that mutate it.
 
 use std::sync::Arc;
+use std::time::Duration;
 
 use anyhow::{anyhow, Context, Result};
 use spotify_jam::JamClient;
@@ -54,6 +55,13 @@ pub struct Daemon {
     pending_login: RwLock<Option<String>>,
     /// Whether a window is on screen. Gates the remote-playback poller.
     ui_visible: std::sync::atomic::AtomicBool,
+    /// Tracks queued from here, oldest first.
+    ///
+    /// Spotify will not tell us what is in the queue — the playback endpoint
+    /// reports upcoming tracks without saying which are queued and which are
+    /// simply next in the album. "Play next" has to rewrite the whole queue,
+    /// so it needs this to put back what was already waiting.
+    queued: RwLock<Vec<String>>,
     config: EngineConfig,
 }
 
@@ -69,6 +77,7 @@ impl Daemon {
             engine: RwLock::new(None),
             web: RwLock::new(None),
             jam: RwLock::new(None),
+            queued: RwLock::new(Vec::new()),
             login: Arc::new(Mutex::new(())),
             pending_login: RwLock::new(None),
             web_client_id: RwLock::new(None),
@@ -400,6 +409,32 @@ impl Daemon {
         });
 
         Ok(Payload::Ok)
+    }
+
+    /// Device id of whatever is playing right now.
+    ///
+    /// Queue commands are addressed to a device, so there has to be one.
+    async fn playing_device(&self) -> Result<String> {
+        let web = self.require_web().await?;
+        let web = web.as_ref().expect("checked by require_web");
+
+        let devices = web.devices(&self.state.read().await.device_name).await?;
+        devices
+            .into_iter()
+            .find(|d| d.is_active)
+            .map(|d| d.id)
+            .ok_or_else(|| anyhow!("nothing is playing, so there is no queue to add to"))
+    }
+
+    /// Forget a queued track once it has come round.
+    ///
+    /// Best effort by design: the point is to stop the list growing forever,
+    /// not to model Spotify's queue exactly.
+    pub async fn note_played(&self, uri: &str) {
+        let mut queue = self.queued.write().await;
+        if let Some(at) = queue.iter().position(|q| q == uri) {
+            queue.drain(..=at);
+        }
     }
 
     /// Fill in whether the playing track is in the user's library.
@@ -790,9 +825,33 @@ impl Daemon {
             }
 
             AddToQueue { uri } => {
-                let web = self.require_web().await?;
-                let web = web.as_ref().expect("checked by require_web");
-                web.add_to_queue(&uri).await?;
+                {
+                    let web = self.require_web().await?;
+                    let web = web.as_ref().expect("checked by require_web");
+                    web.add_to_queue(&uri).await?;
+                }
+                self.queued.write().await.push(uri);
+                Ok(Payload::Ok)
+            }
+
+            PlayNext { uri } => {
+                let engine = self.engine().await?;
+                let target = self.playing_device().await?;
+
+                // Ours goes first; whatever we had queued keeps its order
+                // behind it.
+                let mut queue = self.queued.write().await;
+                queue.insert(0, uri);
+                spotify_player_core::queue::set_queue(engine.session(), &target, &queue).await?;
+                drop(queue);
+
+                // The queue rail reads from Spotify, which takes a moment to
+                // catch up with a command it has just been handed.
+                let this = self.clone();
+                tokio::spawn(async move {
+                    tokio::time::sleep(Duration::from_millis(600)).await;
+                    this.poll_remote().await;
+                });
                 Ok(Payload::Ok)
             }
 

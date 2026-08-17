@@ -830,6 +830,12 @@ body.resizing * { pointer-events: none; }
 #np-heart { opacity: 1; }
 #np-heart:hover svg { fill: var(--text); }
 
+/* Add to playlist, sitting beside it. Same weight as the heart: these are
+   the two things you want to do to a song while it is playing. */
+.np-add { display: grid; place-items: center; flex: none; }
+.np-add svg { width: 16px; height: 16px; fill: var(--text-mute); }
+.np-add:hover svg { fill: var(--text); }
+
 /* ------------------------------------------------------ detail header */
 
 /* Colour wash behind the header, as on the real playlist pages. The hue is
