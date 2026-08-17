@@ -10,6 +10,21 @@ use spotify_web::WebClient;
 use tokio::sync::{broadcast, Mutex, RwLock};
 use tracing::{debug, info, warn};
 
+/// A transport action, which may end up at the local player or at whichever
+/// other device is holding playback.
+#[derive(Clone, Copy)]
+enum Transport {
+    Play,
+    Pause,
+    PlayPause,
+    Next,
+    Previous,
+    Seek(u32),
+    Volume(u16),
+    Shuffle(bool),
+    Repeat(spotify_proto::RepeatMode),
+}
+
 /// The Jam operations reachable over IPC.
 enum JamOp {
     Status,
@@ -287,7 +302,19 @@ impl Daemon {
                     if new_uri != old_uri {
                         changed_track = r.track.clone();
                     }
-                    s.track = r.track;
+
+                    // The playback endpoint says nothing about library
+                    // membership, so a fresh copy of the same track arrives
+                    // with `saved` false. Carrying the flag over is what stops
+                    // the heart — and the taskbar's like button — flicking
+                    // back off a few seconds after you press them.
+                    let was_saved = s.track.as_ref().map(|t| t.saved).unwrap_or(false);
+                    s.track = r.track.map(|mut t| {
+                        if Some(&t.uri) == old_uri.as_ref() {
+                            t.saved = was_saved;
+                        }
+                        t
+                    });
                     s.playing = r.is_playing;
                     s.position_ms = r.progress_ms;
                     s.shuffle = r.shuffle;
@@ -307,6 +334,106 @@ impl Daemon {
         if let Some(track) = changed_track {
             let _ = self.events.send(Event::TrackChanged(Box::new(track)));
         }
+        let _ = self
+            .events
+            .send(Event::State(Box::new(self.snapshot().await)));
+    }
+
+    /// Send a transport action to whatever is actually playing.
+    ///
+    /// The local player only obeys while this device is the active Connect
+    /// endpoint — librespot drops anything else with "ignored while Not
+    /// Active". Rustify mirrors the account rather than just its own output,
+    /// so while your phone or the official app holds playback every control
+    /// here (the window's, the tray's, the media keys', the taskbar's) would
+    /// otherwise look alive and do nothing. The Web API is the way to reach
+    /// the device that does own it.
+    async fn transport(self: &Arc<Self>, action: Transport) -> Result<Payload> {
+        let (elsewhere, playing) = {
+            let s = self.state.read().await;
+            (!s.active && s.remote_device.is_some(), s.playing)
+        };
+
+        if !elsewhere {
+            let engine = self.engine().await?;
+            match action {
+                Transport::Play => engine.play()?,
+                Transport::Pause => engine.pause()?,
+                Transport::PlayPause => engine.play_pause()?,
+                Transport::Next => engine.next()?,
+                Transport::Previous => engine.previous()?,
+                Transport::Seek(position_ms) => engine.seek(position_ms)?,
+                Transport::Volume(volume) => engine.set_volume(volume)?,
+                Transport::Shuffle(enabled) => engine.set_shuffle(enabled)?,
+                Transport::Repeat(mode) => engine.set_repeat(mode)?,
+            }
+            return Ok(Payload::Ok);
+        }
+
+        let web = self.require_web().await?;
+        let web = web.as_ref().expect("checked by require_web");
+        match action {
+            Transport::Play => web.remote_resume().await?,
+            Transport::Pause => web.remote_pause().await?,
+            Transport::PlayPause => match playing {
+                true => web.remote_pause().await?,
+                false => web.remote_resume().await?,
+            },
+            Transport::Next => web.remote_next().await?,
+            Transport::Previous => web.remote_previous().await?,
+            Transport::Seek(position_ms) => web.remote_seek(position_ms).await?,
+            // The remote endpoint speaks percent; ours is librespot's range.
+            Transport::Volume(volume) => {
+                web.remote_volume((volume as u32 * 100 / u16::MAX as u32) as u8)
+                    .await?
+            }
+            Transport::Shuffle(enabled) => web.remote_shuffle(enabled).await?,
+            Transport::Repeat(mode) => web.remote_repeat(mode).await?,
+        }
+
+        // The regular poll would catch up within a few seconds, which is long
+        // enough for a button press to feel broken.
+        let this = self.clone();
+        tokio::spawn(async move {
+            tokio::time::sleep(std::time::Duration::from_millis(400)).await;
+            this.poll_remote().await;
+        });
+
+        Ok(Payload::Ok)
+    }
+
+    /// Fill in whether the playing track is in the user's library.
+    ///
+    /// Neither librespot nor the remote-playback endpoint reports this, so the
+    /// heart in the now-playing bar — and the taskbar's like button — had
+    /// nothing to go on and always looked empty. One small request per track
+    /// change is a fair price for showing the truth.
+    pub async fn annotate_saved(&self, uri: &str) {
+        let saved = {
+            let web = self.web.read().await;
+            let Some(web) = web.as_ref() else { return };
+
+            let mut probe = vec![spotify_proto::Track {
+                uri: uri.to_string(),
+                ..Default::default()
+            }];
+            if let Err(e) = web.annotate_saved(&mut probe).await {
+                debug!("could not check whether {uri} is saved: {e:#}");
+                return;
+            }
+            debug!("{uri} saved: {}", probe[0].saved);
+            probe[0].saved
+        };
+
+        {
+            let mut s = self.state.write().await;
+            match s.track.as_mut() {
+                // The track may have moved on while the request was in flight.
+                Some(track) if track.uri == uri && track.saved != saved => track.saved = saved,
+                _ => return,
+            }
+        }
+
         let _ = self
             .events
             .send(Event::State(Box::new(self.snapshot().await)));
@@ -440,23 +567,15 @@ impl Daemon {
             }
 
             // -- transport -------------------------------------------------
-            Play => self.engine().await?.play().map(|_| Payload::Ok),
-            Pause => self.engine().await?.pause().map(|_| Payload::Ok),
-            PlayPause => self.engine().await?.play_pause().map(|_| Payload::Ok),
-            Next => self.engine().await?.next().map(|_| Payload::Ok),
-            Previous => self.engine().await?.previous().map(|_| Payload::Ok),
-            Seek { position_ms } => self.engine().await?.seek(position_ms).map(|_| Payload::Ok),
-            SetVolume { volume } => self
-                .engine()
-                .await?
-                .set_volume(volume)
-                .map(|_| Payload::Ok),
-            SetShuffle { enabled } => self
-                .engine()
-                .await?
-                .set_shuffle(enabled)
-                .map(|_| Payload::Ok),
-            SetRepeat { mode } => self.engine().await?.set_repeat(mode).map(|_| Payload::Ok),
+            Play => self.transport(Transport::Play).await,
+            Pause => self.transport(Transport::Pause).await,
+            PlayPause => self.transport(Transport::PlayPause).await,
+            Next => self.transport(Transport::Next).await,
+            Previous => self.transport(Transport::Previous).await,
+            Seek { position_ms } => self.transport(Transport::Seek(position_ms)).await,
+            SetVolume { volume } => self.transport(Transport::Volume(volume)).await,
+            SetShuffle { enabled } => self.transport(Transport::Shuffle(enabled)).await,
+            SetRepeat { mode } => self.transport(Transport::Repeat(mode)).await,
 
             LoadContext {
                 uri,
@@ -576,11 +695,22 @@ impl Daemon {
                 web.set_saved(&uri, saved).await?;
 
                 // Keep the now-playing heart in sync if it is the same track.
-                let mut s = self.state.write().await;
-                if let Some(track) = s.track.as_mut() {
-                    if track.uri == uri {
-                        track.saved = saved;
+                let hit = {
+                    let mut s = self.state.write().await;
+                    match s.track.as_mut() {
+                        Some(track) if track.uri == uri => {
+                            track.saved = saved;
+                            true
+                        }
+                        _ => false,
                     }
+                };
+                if hit {
+                    // Everything showing the heart — the window, the taskbar
+                    // buttons — redraws from this.
+                    let _ = self
+                        .events
+                        .send(Event::State(Box::new(self.snapshot().await)));
                 }
                 Ok(Payload::Ok)
             }

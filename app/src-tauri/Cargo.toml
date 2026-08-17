@@ -25,6 +25,12 @@ windows = { version = "0.61", features = [
     "Storage_Streams",
     "Win32_Foundation",
     "Win32_System_WinRT",
+    # Taskbar thumbnail toolbar: the shell interface, the window subclass that
+    # receives its clicks, and the GDI calls that build its icons.
+    "Win32_System_Com",
+    "Win32_UI_Shell",
+    "Win32_UI_WindowsAndMessaging",
+    "Win32_Graphics_Gdi",
 ] }
 tokio.workspace = true
 reqwest = { version = "0.12", default-features = false, features = [

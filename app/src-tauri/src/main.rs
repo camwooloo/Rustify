@@ -10,6 +10,8 @@
 mod link;
 #[cfg(windows)]
 mod smtc;
+#[cfg(windows)]
+mod thumbbar;
 mod tray;
 mod update;
 
@@ -119,19 +121,35 @@ fn main() {
             #[cfg(windows)]
             {
                 use tauri::Manager;
-                match app
+                let hwnd = app
                     .get_webview_window("main")
                     .ok_or_else(|| anyhow_msg("no main window"))
                     .and_then(|w| w.hwnd().map_err(|e| anyhow_msg(&e.to_string())))
-                    .and_then(|hwnd| {
-                        smtc::Smtc::new(hwnd.0 as isize, link.clone())
-                            .map_err(|e| anyhow_msg(&format!("{e:#}")))
-                    }) {
+                    .map(|hwnd| hwnd.0 as isize);
+
+                match hwnd.clone().and_then(|hwnd| {
+                    smtc::Smtc::new(hwnd, link.clone())
+                        .map_err(|e| anyhow_msg(&format!("{e:#}")))
+                }) {
                     Ok(smtc) => {
                         app.manage(std::sync::Arc::new(smtc));
                         tracing::info!("media controls registered");
                     }
                     Err(e) => tracing::warn!("media controls unavailable: {e}"),
+                }
+
+                // The transport buttons under the taskbar preview. Same window
+                // handle, and it must be set up on this thread — the shell
+                // sends their clicks to the window's message queue.
+                match hwnd.and_then(|hwnd| {
+                    thumbbar::ThumbBar::new(hwnd, link.clone())
+                        .map_err(|e| anyhow_msg(&format!("{e:#}")))
+                }) {
+                    Ok(bar) => {
+                        app.manage(bar);
+                        tracing::info!("taskbar buttons registered");
+                    }
+                    Err(e) => tracing::warn!("taskbar buttons unavailable: {e}"),
                 }
             }
 

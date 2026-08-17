@@ -557,6 +557,15 @@ function highlightLyrics() {
  *  show, and the only one expanded by default in Settings. */
 const CHANGELOG = [
   {
+    v: "0.3.7",
+    d: "17 Aug 2026",
+    notes: [
+      "Hovering Rustify in the taskbar now shows media buttons — like, previous, play/pause and next — the same row the official app has",
+      "Play, pause, skip and the rest now work while the music is playing on another device; before, every control was quietly ignored unless Rustify itself was playing",
+      "The heart in the now-playing bar shows whether the track is in your library, and no longer hides itself until it is",
+    ],
+  },
+  {
     v: "0.3.6",
     d: "16 Aug 2026",
     notes: [

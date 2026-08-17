@@ -136,6 +136,7 @@ async fn main() -> Result<()> {
     tokio::spawn(tick_position(daemon.clone()));
     tokio::spawn(poll_remote(daemon.clone()));
     tokio::spawn(watch_session(daemon.clone()));
+    tokio::spawn(watch_saved(daemon.clone()));
 
     server::serve(daemon, listener).await
 }
@@ -202,6 +203,26 @@ async fn poll_remote(daemon: std::sync::Arc<Daemon>) {
             continue;
         }
         daemon.poll_remote().await;
+    }
+}
+
+/// Look up whether each new track is in the user's library.
+///
+/// Done here rather than at the two places a track change is emitted: one of
+/// them lives in the player crate, which has no Web API client, and this way
+/// the lookup cannot delay the event that tells the UI what is playing.
+async fn watch_saved(daemon: std::sync::Arc<Daemon>) {
+    use tokio::sync::broadcast::error::RecvError;
+
+    let mut events = daemon.subscribe();
+    loop {
+        match events.recv().await {
+            Ok(Event::TrackChanged(track)) => daemon.annotate_saved(&track.uri).await,
+            Ok(_) => {}
+            // Falling behind only means missed events, never a reason to stop.
+            Err(RecvError::Lagged(n)) => warn!("saved-state watcher missed {n} events"),
+            Err(RecvError::Closed) => break,
+        }
     }
 }
 

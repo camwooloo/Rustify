@@ -217,9 +217,13 @@ async fn pump(link: &Arc<DaemonLink>, stream: TcpStream, app: &AppHandle) -> Res
                 }
             }
             Some("event") => {
-                // The media overlay follows the same events the UI does.
+                // The media overlay and the taskbar buttons follow the same
+                // events the UI does, so neither can drift from it.
                 #[cfg(windows)]
-                crate::smtc::apply_event(app, &frame);
+                {
+                    crate::smtc::apply_event(app, &frame);
+                    crate::thumbbar::apply_event(app, &frame);
+                }
 
                 // Forward verbatim; the daemon's wire shape is the UI's model.
                 let _ = app.emit(EVENT_CHANNEL, frame);

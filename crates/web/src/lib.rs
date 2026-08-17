@@ -957,6 +957,54 @@ impl WebClient {
         .await
     }
 
+    /// Transport for whichever device is actually playing.
+    ///
+    /// librespot's Spirc refuses commands while this device is not the active
+    /// endpoint — it logs "ignored while Not Active" and drops them. Since
+    /// Rustify mirrors the account rather than only its own output, these are
+    /// what make the controls work while your phone or the official app holds
+    /// playback.
+    pub async fn remote_pause(&self) -> Result<()> {
+        retrying("pausing", || self.client.pause_playback(None)).await
+    }
+
+    pub async fn remote_resume(&self) -> Result<()> {
+        retrying("resuming", || self.client.resume_playback(None, None)).await
+    }
+
+    pub async fn remote_next(&self) -> Result<()> {
+        retrying("skipping", || self.client.next_track(None)).await
+    }
+
+    pub async fn remote_previous(&self) -> Result<()> {
+        retrying("going back", || self.client.previous_track(None)).await
+    }
+
+    pub async fn remote_seek(&self, position_ms: u32) -> Result<()> {
+        let at = chrono::Duration::milliseconds(position_ms as i64);
+        retrying("seeking", || self.client.seek_track(at, None)).await
+    }
+
+    pub async fn remote_volume(&self, percent: u8) -> Result<()> {
+        retrying("setting the volume", || {
+            self.client.volume(percent.min(100), None)
+        })
+        .await
+    }
+
+    pub async fn remote_shuffle(&self, enabled: bool) -> Result<()> {
+        retrying("setting shuffle", || self.client.shuffle(enabled, None)).await
+    }
+
+    pub async fn remote_repeat(&self, mode: wire::RepeatMode) -> Result<()> {
+        let state = match mode {
+            wire::RepeatMode::Off => rspotify::model::RepeatState::Off,
+            wire::RepeatMode::Context => rspotify::model::RepeatState::Context,
+            wire::RepeatMode::Track => rspotify::model::RepeatState::Track,
+        };
+        retrying("setting repeat", || self.client.repeat(state, None)).await
+    }
+
     pub async fn transfer_playback(&self, device_id: &str, play: bool) -> Result<()> {
         self.client
             .transfer_playback(device_id, Some(play))

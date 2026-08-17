@@ -825,6 +825,11 @@ body.resizing * { pointer-events: none; }
 .heart svg { width: 16px; height: 16px; fill: var(--text-mute); }
 .heart.on svg { fill: var(--accent); }
 
+/* The now-playing one has no row to hover, so hiding it until it is already
+   saved made it impossible to save the track you are listening to. */
+#np-heart { opacity: 1; }
+#np-heart:hover svg { fill: var(--text); }
+
 /* ------------------------------------------------------ detail header */
 
 /* Colour wash behind the header, as on the real playlist pages. The hue is
