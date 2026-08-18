@@ -830,6 +830,12 @@ body.resizing * { pointer-events: none; }
 #np-heart { opacity: 1; }
 #np-heart:hover svg { fill: var(--text); }
 
+/* Add to playlist, sitting beside it. Same weight as the heart: these are
+   the two things you want to do to a song while it is playing. */
+.np-add { display: grid; place-items: center; flex: none; }
+.np-add svg { width: 16px; height: 16px; fill: var(--text-mute); }
+.np-add:hover svg { fill: var(--text); }
+
 /* ------------------------------------------------------ detail header */
 
 /* Colour wash behind the header, as on the real playlist pages. The hue is
@@ -1240,6 +1246,18 @@ input[type="range"]:hover::-webkit-slider-thumb { opacity: 1; }
 .device-row:hover { background: var(--glass-2); }
 .device-row.active { color: var(--accent); }
 .device-row svg { width: 19px; height: 19px; fill: currentColor; flex: 0 0 auto; }
+
+/* Device rows carry an icon; the playlist picker reuses them with artwork,
+   which without this fills the whole popover. */
+.device-row img,
+.device-row .thumb {
+  width: 40px;
+  height: 40px;
+  border-radius: 6px;
+  flex: 0 0 auto;
+  object-fit: cover;
+  background: var(--glass-2);
+}
 
 .jam-row { display: flex; align-items: center; gap: 10px; padding: 7px; }
 

@@ -43,6 +43,8 @@ mod endpoints {
     pub const JOIN: &str = "/social-connect/v2/sessions/join/";
     /// Leave the session the caller is currently in.
     pub const LEAVE: &str = "/social-connect/v2/sessions/leave";
+    /// Delete a session outright. Only the owner may; append the session id.
+    pub const DELETE: &str = "/social-connect/v2/sessions/";
     /// Dealer topic carrying live session updates.
     pub const DEALER_TOPIC: &str = "hm://social-connect/v2/sessions";
 }
@@ -224,6 +226,24 @@ impl JamClient {
     }
 
     pub async fn leave(&self) -> Result<JamState> {
+        // Leaving is not the same as ending. A host who leaves keeps the
+        // session alive for everyone else — which, when the host is the only
+        // member, leaves a Jam nobody can end from here. So the owner deletes
+        // it outright and everyone else just leaves.
+        if let Ok(current) = self.current().await {
+            if current.is_host {
+                if let Some(id) = current.session_id.as_deref() {
+                    let endpoint = format!("{}{id}", endpoints::DELETE);
+                    match self.call(Method::DELETE, &endpoint).await {
+                        Ok(_) => debug!("ended the jam we host"),
+                        // Parsing an empty success body fails here, which is
+                        // fine: the leave below is the backstop either way.
+                        Err(e) => debug!("could not delete the jam session: {e:#}"),
+                    }
+                }
+            }
+        }
+
         // The response body is not useful here; success is the signal.
         let _ = self.call(Method::POST, endpoints::LEAVE).await;
         Ok(JamState::default())
