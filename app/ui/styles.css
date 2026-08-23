@@ -1483,6 +1483,43 @@ select option:hover { background: rgba(var(--accent-rgb), 0.28); }
 .updbar .upd-x svg { width: 14px; height: 14px; fill: currentColor; }
 .updbar.busy .upd-x { display: none; }
 
+/* While it installs there is nothing left to click, so the bar becomes a
+   progress readout: the fill runs along the bottom edge of the bar itself. */
+.updbar.busy .upd-go { display: none; }
+
+.updbar .upd-bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 3px;
+  border-radius: 0 0 14px 14px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.09);
+  opacity: 0;
+}
+
+.updbar.busy .upd-bar { opacity: 1; }
+
+.updbar .upd-fill {
+  height: 100%;
+  width: 0;
+  background: var(--accent);
+  transition: width 0.2s linear;
+}
+
+/* Installing has no percentage to report — the installer is a separate
+   process doing its own thing — so the bar sweeps instead of filling. */
+.updbar.installing .upd-fill {
+  width: 40%;
+  animation: upd-sweep 1.1s var(--ease) infinite;
+}
+
+@keyframes upd-sweep {
+  0% { margin-left: -40%; }
+  100% { margin-left: 100%; }
+}
+
 /* ------------------------------------------------------- changelog */
 
 .patch {

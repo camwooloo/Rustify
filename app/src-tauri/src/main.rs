@@ -47,17 +47,22 @@ async fn check_update() -> Option<update::UpdateInfo> {
     update::check().await
 }
 
-/// Download the installer and hand off to it. The app exits so the installer
-/// can replace both executables.
+/// Download the installer and hand off to it, reporting download progress to
+/// the window as it goes.
+///
+/// The app does not exit here: the silent installer closes Rustify itself and
+/// starts the new build when it is done.
 #[tauri::command]
 async fn apply_update(app: tauri::AppHandle, url: String) -> Result<(), String> {
-    update::apply(&url).await.map_err(|e| format!("{e:#}"))?;
+    use tauri::Emitter;
 
-    // Give the installer a moment to start before the window disappears.
-    tauri::async_runtime::spawn(async move {
-        tokio::time::sleep(std::time::Duration::from_millis(600)).await;
-        app.exit(0);
-    });
+    let window = app.clone();
+    update::apply(&url, move |pct| {
+        let _ = window.emit("update-progress", pct);
+    })
+    .await
+    .map_err(|e| format!("{e:#}"))?;
+
     Ok(())
 }
 

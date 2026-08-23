@@ -4,6 +4,12 @@
 //! does *not* hot-swap the running binary the way a single-file tool can.
 //! It downloads the published installer and hands off to it, which replaces
 //! both halves and keeps the installed state consistent.
+//!
+//! The handoff is silent. Nobody wants a setup wizard as the price of a bug
+//! fix, so the installer runs with no window of its own, closes Rustify,
+//! swaps the files and starts it again. Because Rustify installs per user
+//! there is no elevation prompt either, which is what makes a single click
+//! enough.
 
 use anyhow::{anyhow, Context, Result};
 use serde::{Deserialize, Serialize};
@@ -105,8 +111,24 @@ pub async fn check() -> Option<UpdateInfo> {
     })
 }
 
-/// Download the installer and launch it, then let the caller exit.
-pub async fn apply(url: &str) -> Result<()> {
+/// Silent install: no window, no clicks, close Rustify, start it again.
+///
+/// `/S` is NSIS's own silent switch, and Tauri's installer reads the other
+/// two: `/UPDATE` to install over itself rather than as a first install, and
+/// `/R` to relaunch the app afterwards.
+const INSTALL_SILENTLY: [&str; 3] = ["/S", "/UPDATE", "/R"];
+
+/// Download the installer and hand off to it.
+///
+/// `on_progress` is called with a whole percentage as the download runs, and
+/// only when that number changes: it is driving a progress bar, and there is
+/// no point waking the webview for a fraction of a percent.
+///
+/// This does not exit the app afterwards. The installer stops Rustify itself
+/// as its first step, which is both the moment the window should disappear
+/// and the only one that is safe — quitting any earlier would leave nothing
+/// on screen while the download's replacement is still being written.
+pub async fn apply(url: &str, on_progress: impl Fn(u8)) -> Result<()> {
     // Only ever fetch from the project's own release host.
     if !url.starts_with("https://github.com/") && !url.starts_with("https://objects.githubusercontent.com/")
     {
@@ -118,28 +140,47 @@ pub async fn apply(url: &str) -> Result<()> {
         .build()
         .context("building the update client")?;
 
-    let bytes = client
+    let mut response = client
         .get(url)
         .send()
         .await
         .context("downloading the update")?
         .error_for_status()
-        .context("the download was rejected")?
-        .bytes()
-        .await
-        .context("reading the update")?;
+        .context("the download was rejected")?;
+
+    let total = response.content_length().unwrap_or(0);
+    let mut bytes: Vec<u8> = Vec::with_capacity(total as usize);
+    let mut shown = 0u8;
+
+    while let Some(chunk) = response.chunk().await.context("reading the update")? {
+        bytes.extend_from_slice(&chunk);
+        if total > 0 {
+            let pct = ((bytes.len() as u64 * 100 / total) as u8).min(100);
+            if pct != shown {
+                shown = pct;
+                on_progress(pct);
+            }
+        }
+    }
 
     // A real build is well over a megabyte; this catches error pages saved
     // as if they were the installer.
     if bytes.len() < 500_000 {
         return Err(anyhow!("the downloaded file looks too small to be real"));
     }
+    // A truncated download would install a broken Rustify, so treat a short
+    // read as a failure rather than handing the installer half a file.
+    if total > 0 && bytes.len() as u64 != total {
+        return Err(anyhow!("the download ended early"));
+    }
 
     let path = std::env::temp_dir().join("Rustify-update-setup.exe");
     std::fs::write(&path, &bytes)
         .with_context(|| format!("writing {}", path.display()))?;
 
+    info!("installing the update silently");
     std::process::Command::new(&path)
+        .args(INSTALL_SILENTLY)
         .spawn()
         .with_context(|| format!("launching {}", path.display()))?;
 

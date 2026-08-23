@@ -557,6 +557,14 @@ function highlightLyrics() {
  *  show, and the only one expanded by default in Settings. */
 const CHANGELOG = [
   {
+    v: "0.4.0",
+    d: "23 Aug 2026",
+    notes: [
+      "Updates now install themselves: one click, a progress bar, and Rustify restarts on the new version — no setup window, no Next buttons",
+      "This was the last update that opened the installer. The new one is already in place for whatever comes next",
+    ],
+  },
+  {
     v: "0.3.9",
     d: "18 Aug 2026",
     notes: [
@@ -736,7 +744,7 @@ function changelogHtml() {
   ).join("");
 }
 
-/** Bottom-centre bar offering an update. */
+/** Bottom-centre bar offering an update, and then showing it happening. */
 function showUpdateBar(info) {
   if (!info || document.getElementById("updbar")) return;
 
@@ -745,18 +753,39 @@ function showUpdateBar(info) {
     <span class="upd-i">${icon("browse")}</span>
     <span class="upd-t">Update <b>v${esc(info.version)}</b> is available</span>
     <button class="upd-go">Update now</button>
-    <button class="upd-x" title="Later">${icon("x")}</button>`;
+    <button class="upd-x" title="Later">${icon("x")}</button>
+    <span class="upd-bar"><span class="upd-fill"></span></span>`;
   document.body.append(bar);
+
+  const text = bar.querySelector(".upd-t");
+  const fill = bar.querySelector(".upd-fill");
 
   bar.querySelector(".upd-x").onclick = () => bar.remove();
   bar.querySelector(".upd-go").onclick = async () => {
     bar.classList.add("busy");
-    bar.querySelector(".upd-go").textContent = "Downloading\u2026";
+    text.textContent = "Downloading the update…";
+
+    // The installer closes Rustify as its first step, so from here the window
+    // going away *is* the success case. Nothing below runs on a good update.
+    const stop = listen("update-progress", ({ payload }) => {
+      fill.style.width = `${payload}%`;
+      text.textContent =
+        payload >= 100
+          ? "Installing…"
+          : `Downloading the update… ${payload}%`;
+      if (payload >= 100) bar.classList.add("installing");
+    });
+
     try {
       await invoke("apply_update", { url: info.url });
+      // Downloaded and handed over. Rustify has moments left to live.
+      bar.classList.add("installing");
+      text.textContent = "Installing…";
     } catch (e) {
-      bar.classList.remove("busy");
-      bar.querySelector(".upd-go").textContent = "Update now";
+      (await stop)();
+      bar.classList.remove("busy", "installing");
+      fill.style.width = "0";
+      text.innerHTML = `Update <b>v${esc(info.version)}</b> is available`;
       toast(`Update failed: ${e}`, "error");
     }
   };
