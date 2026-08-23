@@ -560,7 +560,7 @@ const CHANGELOG = [
     v: "0.4.1",
     d: "23 Aug 2026",
     notes: [
-      "Fixed the second update in one sitting failing: each download now keeps its own name, since the installer that ran before it holds its file open for as long as Rustify stays open",
+      "Each downloaded update now keeps its own name and the previous one is cleared away, so an installer that has not finished with its file cannot block the next update",
     ],
   },
   {
