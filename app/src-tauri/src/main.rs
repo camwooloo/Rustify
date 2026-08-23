@@ -13,6 +13,9 @@ mod smtc;
 #[cfg(windows)]
 mod thumbbar;
 mod tray;
+/// Label of the miniplayer window.
+const MINI_WINDOW: &str = "mini";
+
 mod marketplace;
 mod spicetify;
 mod statsfm;
@@ -42,6 +45,74 @@ async fn call(
 #[tauri::command]
 fn connected(state: tauri::State<'_, Arc<DaemonLink>>) -> bool {
     state.is_connected()
+}
+
+/// Open the miniplayer and put the main window away.
+///
+/// A window of its own rather than a mode of the main one: it stays above
+/// whatever else is on screen, which a hidden-chrome main window cannot do
+/// without dragging the whole interface along with it.
+#[tauri::command]
+async fn open_mini(app: tauri::AppHandle) -> Result<(), String> {
+    if let Some(mini) = app.get_webview_window(MINI_WINDOW) {
+        let _ = mini.set_focus();
+        return Ok(());
+    }
+
+    tauri::WebviewWindowBuilder::new(
+        &app,
+        MINI_WINDOW,
+        tauri::WebviewUrl::App("mini.html".into()),
+    )
+    .title("Rustify")
+    .inner_size(300.0, 340.0)
+    .min_inner_size(260.0, 300.0)
+    .max_inner_size(420.0, 480.0)
+    .decorations(false)
+    .always_on_top(true)
+    .skip_taskbar(true)
+    .resizable(true)
+    .build()
+    .map_err(|e| format!("opening the miniplayer: {e}"))?;
+
+    // Whatever closes the miniplayer — its own button, Alt+F4, a crash of
+    // the webview — the main window comes back. Without this the app could
+    // end up with every window hidden and only the tray to find it by.
+    let handle = app.clone();
+    if let Some(mini) = app.get_webview_window(MINI_WINDOW) {
+        mini.on_window_event(move |event| {
+            if matches!(event, tauri::WindowEvent::Destroyed) {
+                if let Some(main) = handle.get_webview_window("main") {
+                    let _ = main.show();
+                }
+            }
+        });
+    }
+
+    if let Some(main) = app.get_webview_window("main") {
+        let _ = main.hide();
+    }
+    Ok(())
+}
+
+/// Close the miniplayer, bringing the main window back when asked.
+///
+/// Called both by the miniplayer's own button and when its window is closed
+/// any other way, so the main window can never end up hidden with nothing
+/// left on screen to bring it back.
+#[tauri::command]
+async fn close_mini(app: tauri::AppHandle, restore: bool) -> Result<(), String> {
+    if let Some(mini) = app.get_webview_window(MINI_WINDOW) {
+        let _ = mini.close();
+    }
+    if restore {
+        if let Some(main) = app.get_webview_window("main") {
+            let _ = main.show();
+            let _ = main.unminimize();
+            let _ = main.set_focus();
+        }
+    }
+    Ok(())
 }
 
 /// One kind of Marketplace listing: extensions, themes, apps or snippets.
@@ -252,6 +323,8 @@ fn main() {
             spicetify_themes,
             marketplace,
             marketplace_schemes,
+            open_mini,
+            close_mini,
             statsfm_search,
             statsfm_overview
         ])

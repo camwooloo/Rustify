@@ -588,6 +588,18 @@ function highlightLyrics() {
  *  show, and the only one expanded by default in Settings. */
 const CHANGELOG = [
   {
+    v: "0.8.0",
+    d: "23 Aug 2026",
+    notes: [
+      "A miniplayer and a full screen view, from the two buttons to the right of the volume, as in the real client",
+      "The miniplayer is a small window that stays above everything else, with the artwork, the controls and a progress line — and it wears whatever theme you have on",
+      "Full screen fills the window with the artwork and keeps the controls where they are; Escape leaves",
+      "The volume slider is short again. It has carried a width since it was written and never used it: the rule setting it was outweighed, so the slider stretched to fill whatever room was left",
+      "The lyrics button is a plain upright microphone rather than the tilted one, which at that size read as a paintbrush",
+      "Updates are checked every couple of hours rather than only at launch, so a release that lands while Rustify is open is offered without a restart",
+    ],
+  },
+  {
     v: "0.7.0",
     d: "23 Aug 2026",
     notes: [
@@ -824,6 +836,15 @@ function changelogHtml() {
       <ul>${e.notes.map((n) => `<li>${esc(n)}</li>`).join("")}</ul>
     </details>`
   ).join("");
+}
+
+/** Ask GitHub whether there is a newer release, and offer it if so. */
+function checkForUpdate() {
+  invoke("check_update")
+    .then((info) => info && showUpdateBar(info))
+    .catch(() => {
+      /* No network, no release, no matter. */
+    });
 }
 
 /** Bottom-centre bar offering an update, and then showing it happening. */
@@ -1647,140 +1668,7 @@ async function renderMarket(content, refresh) {
   });
 }
 
-/* ---------------------------------------------------------- theming */
 
-/* Spicetify themes are colour schemes: a palette named after the surfaces of
- * the Spotify client. Rustify's variables describe those same surfaces, so a
- * scheme is applied by mapping one set of names onto the other and filling in
- * the shades a scheme does not carry.
- *
- * Only colours cross over. A theme's user.css is written against Spotify's
- * own class names and would find nothing here, so it is never fetched. */
-
-const THEME_KEY = "rustify.theme";
-
-/** "1db954" or "#1db954" or "abc" -> [r, g, b]. */
-function parseHex(hex) {
-  let h = String(hex || "").replace("#", "").trim();
-  if (h.length === 3) h = h.split("").map((c) => c + c).join("");
-  if (h.length === 8) h = h.slice(0, 6);
-  if (h.length !== 6 || !/^[0-9a-f]{6}$/i.test(h)) return null;
-  return [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16));
-}
-
-const toHex = (rgb) =>
-  "#" + rgb.map((v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, "0")).join("");
-
-/** Blend two colours. `t` of 0 is all `a`, 1 is all `b`. */
-const mix = (a, b, t) => a.map((v, i) => v + (b[i] - v) * t);
-
-/** Perceived brightness, for deciding what reads on top of a colour. */
-const luma = ([r, g, b]) => (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-
-/** Turn a Spicetify palette into the variables the stylesheet reads.
- *
- * A scheme names the surfaces it cares about and leaves the rest to the
- * theme's CSS, which we do not have — so every shade in between is derived
- * from the ones it does name, by moving a surface towards the text colour.
- * That is what keeps hovers and menus visible on a light scheme instead of
- * washing out against a white tint meant for a dark one.
- */
-function schemeToVars(colors) {
-  const pick = (...keys) => {
-    for (const k of keys) {
-      const rgb = parseHex(colors[k]);
-      if (rgb) return rgb;
-    }
-    return null;
-  };
-
-  const main = pick("main", "background", "base") || [18, 18, 18];
-  const text = pick("text", "foreground") || [255, 255, 255];
-  const subtext = pick("subtext", "text-secondary") || mix(text, main, 0.35);
-  const button = pick("button", "accent", "primary") || [30, 215, 96];
-  const buttonActive = pick("button-active", "button-hover") || mix(button, text, 0.2);
-  const card = pick("card", "main-elevated") || mix(main, text, 0.04);
-  const sidebar = pick("sidebar", "main") || main;
-  const player = pick("player", "main") || main;
-  const selected = pick("selected-row", "highlight") || mix(main, text, 0.08);
-  const shadow = pick("shadow") || [0, 0, 0];
-
-  // A tint the same hue as the text, so it shows on light and dark alike.
-  const tint = (alpha) => `rgba(${text.map(Math.round).join(", ")}, ${alpha})`;
-
-  return {
-    "--accent": toHex(button),
-    "--accent-hi": toHex(buttonActive),
-    "--accent-rgb": button.map(Math.round).join(", "),
-    "--on-accent": luma(button) > 0.55 ? "#000" : "#fff",
-
-    "--bg-0": toHex(player),
-    "--bg-1": toHex(player),
-    "--surface": toHex(main),
-    "--sidebar": toHex(sidebar),
-    "--surface-2": toHex(mix(main, text, 0.08)),
-    "--card": toHex(card),
-    "--card-hi": toHex(mix(card, text, 0.1)),
-    "--field": toHex(mix(main, text, 0.1)),
-    "--chip": toHex(mix(main, text, 0.09)),
-    "--menu": toHex(mix(card, text, 0.06)),
-    "--row-hover": toHex(selected),
-
-    "--text": toHex(text),
-    "--text-dim": toHex(subtext),
-    "--text-mute": toHex(mix(subtext, main, 0.3)),
-
-    "--hover": tint(0.1),
-    "--hover-hi": tint(0.16),
-    "--tint": tint(0.16),
-    "--tint-soft": tint(0.07),
-    "--stroke-2": tint(0.25),
-    "--hairline": tint(0.08),
-    "--shadow": `0 8px 24px rgba(${shadow.map(Math.round).join(", ")}, 0.5)`,
-  };
-}
-
-/** Apply a scheme, or clear back to Spotify's own colours with no argument. */
-function applyTheme(entry) {
-  let style = document.getElementById("spice-vars");
-  if (!entry) {
-    if (style) style.remove();
-    document.documentElement.style.colorScheme = "dark";
-    localStorage.removeItem(THEME_KEY);
-    return;
-  }
-
-  const vars = schemeToVars(entry.colors);
-  const body = Object.entries(vars)
-    .map(([k, v]) => `${k}:${v};`)
-    .join(" ");
-
-  if (!style) {
-    style = el("style", { id: "spice-vars" });
-    document.head.append(style);
-  }
-  style.textContent = `:root { ${body} }`;
-
-  // Form controls and scrollbars follow this, not our variables.
-  document.documentElement.style.colorScheme =
-    luma(parseHex(vars["--surface"])) > 0.5 ? "light" : "dark";
-
-  localStorage.setItem(THEME_KEY, JSON.stringify(entry));
-}
-
-/** The saved theme, or null for Spotify's own. */
-function savedTheme() {
-  try {
-    const raw = localStorage.getItem(THEME_KEY);
-    return raw ? JSON.parse(raw) : null;
-  } catch {
-    return null;
-  }
-}
-
-// Applied before anything renders: the colours are stored with the choice, so
-// startup never waits on the network to avoid a flash of the wrong palette.
-applyTheme(savedTheme());
 
 /** Render a failure the user can act on, instead of an empty screen. */
 function renderError(content, message) {
@@ -3018,6 +2906,50 @@ function updateVolume() {
   vol.style.setProperty("--pct", `${(v / 65535) * 100}%`);
 }
 
+/* -------------------------------------------------------- full screen */
+
+/* Full screen is the artwork, the title, and the player bar — the rest of
+ * the interface steps out of the way rather than being rebuilt. The window
+ * itself goes fullscreen too, so this is not a maximised window pretending. */
+
+let fullscreenOn = false;
+
+function paintFullscreen() {
+  if (!fullscreenOn) return;
+  const track = state?.track;
+  const art = track?.album?.images?.[0]?.url || track?.coverUrl || "";
+
+  $("#fullscreen").innerHTML = `
+    <div class="fs-art">${art ? `<img src="${esc(art)}" alt="" />` : `<div class="thumb"></div>`}</div>
+    <div class="fs-meta">
+      <h1>${esc(track?.name || "Nothing playing")}</h1>
+      <p>${esc(artistNames(track) || "")}</p>
+    </div>`;
+}
+
+async function setFullscreen(on) {
+  fullscreenOn = on;
+  document.body.classList.toggle("fs", on);
+  $("#fullscreen").hidden = !on;
+  $("#btn-fullscreen").classList.toggle("on", on);
+  paintFullscreen();
+
+  try {
+    await appWindow.setFullscreen(on);
+  } catch {
+    // A window manager that refuses is not a reason to lose the view.
+  }
+}
+
+$("#btn-fullscreen").onclick = () => setFullscreen(!fullscreenOn);
+$("#btn-mini").onclick = () => invoke("open_mini");
+
+// Escape is what everyone reaches for, and there is no other way out while
+// the window has no chrome.
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && fullscreenOn) setFullscreen(false);
+});
+
 /* --------------------------------------------------------- transport */
 
 $("#btn-play").onclick = () => call({ cmd: "playPause" });
@@ -3228,6 +3160,7 @@ const eventsReady = listen("daemon-event", ({ payload }) => {
       const wasLoggedIn = state?.auth?.loggedIn;
       state = ev;
       renderNowPlaying();
+      paintFullscreen();
       if (state.auth?.loggedIn !== wasLoggedIn) {
         renderLibrary();
         render();
@@ -3377,9 +3310,12 @@ async function resync() {
   // Check GitHub *before* waiting on the daemon. This used to sit after the
   // connection gate, so anyone whose player was broken — exactly the people
   // an update would fix — was never offered one.
-  invoke("check_update")
-    .then((info) => info && showUpdateBar(info))
-    .catch(() => {});
+  checkForUpdate();
+  // A release can land while Rustify is open, which for a music player is
+  // most of the time. One request every two hours is a few hundred bytes and
+  // means the offer does not wait for a restart. The bar shows once: a second
+  // check while it is up does nothing.
+  setInterval(checkForUpdate, 2 * 60 * 60 * 1000);
 
   // Reconcile against the daemon on a timer. Started *before* anything can
   // return early: when this sat after the connection gate, a missed status

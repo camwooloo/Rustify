@@ -1,0 +1,108 @@
+/* The miniplayer window: artwork above, one row of controls below, in a
+   window small enough to leave beside something else. It borrows the main
+   stylesheet's variables and control styles, so a theme reaches it too. */
+
+body.mini {
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  overflow: hidden;
+  border-radius: var(--radius);
+}
+
+.mini-art {
+  flex: 1;
+  min-height: 0;
+  background: var(--hover) center / cover no-repeat;
+  position: relative;
+}
+
+/* Window controls appear over the artwork, since there is no titlebar. */
+.mini-buttons {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.15s var(--ease);
+}
+
+body.mini:hover .mini-buttons { opacity: 1; }
+
+.mini-btn {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.mini-btn:hover { background: rgba(0, 0, 0, 0.85); }
+.mini-btn svg { width: 12px; height: 12px; fill: currentColor; }
+
+.mini-body {
+  flex: none;
+  padding: 8px 12px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.mini-meta { min-width: 0; }
+
+.mini-name {
+  font-weight: 700;
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mini-artist {
+  color: var(--text-dim);
+  font-size: 11.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mini-controls {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.mini-controls .ctl-play {
+  width: 30px;
+  height: 30px;
+}
+
+.mini-controls .ctl-play svg { width: 14px; height: 14px; }
+
+.mini-time {
+  margin-left: auto;
+  color: var(--text-mute);
+  font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* A progress line rather than a slider: there is no room to grab one, and
+   the main window is a click away for that. */
+.mini-bar {
+  height: 3px;
+  border-radius: 999px;
+  background: var(--tint);
+  overflow: hidden;
+}
+
+.mini-fill {
+  height: 100%;
+  width: 0;
+  background: var(--text);
+  transition: width 0.3s linear;
+}

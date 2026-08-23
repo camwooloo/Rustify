@@ -1200,7 +1200,17 @@ input[type="range"]:hover::-webkit-slider-thumb { opacity: 1; }
   gap: 12px;
 }
 
-.volume { width: 96px; }
+/* Range inputs grow to fill their row by default, which is right for the
+   seek bar and wrong here: the volume slider is a fixed short run, as in the
+   real client.
+
+   Written with the element and attribute rather than the class alone: the
+   rule it has to beat is `input[type="range"]`, which outweighs a bare class
+   — which is why the width this has always carried never applied. */
+input[type="range"].volume {
+  width: 93px;
+  flex: 0 0 auto;
+}
 
 /* ------------------------------------------------------- popovers etc */
 
@@ -1989,3 +1999,57 @@ select option:hover { background: rgba(var(--accent-rgb), 0.28); }
 .mk-schemes { display: flex; flex-direction: column; gap: 2px; }
 .mk-actions { display: flex; gap: 8px; margin-top: auto; padding-top: 6px; }
 .mk-actions .pill { font-size: 12px; padding: 6px 12px; }
+
+/* ---------------------------------------------------- full screen */
+
+/* Everything but the artwork and the player bar steps aside. The bar stays
+   because the controls are already there and already work — a second set
+   would be two things to keep in step. */
+body.fs #titlebar,
+body.fs #sidebar,
+body.fs #rail { display: none; }
+
+body.fs #shell { padding: 0; grid-template-columns: minmax(0, 1fr); }
+body.fs #main { border-radius: 0; background: transparent; }
+body.fs .content { display: none; }
+body.fs #player { background: transparent; }
+
+#fullscreen {
+  position: fixed;
+  inset: 0 0 var(--bar-h) 0;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 28px;
+  padding: 40px;
+  background: var(--bg-0);
+}
+
+.fs-art {
+  width: min(46vh, 46vw);
+  aspect-ratio: 1;
+  border-radius: var(--radius);
+  overflow: hidden;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.6);
+  background: var(--hover);
+}
+
+.fs-art img,
+.fs-art .thumb { width: 100%; height: 100%; object-fit: cover; }
+
+.fs-meta { text-align: center; max-width: 80vw; }
+
+.fs-meta h1 {
+  font-size: clamp(28px, 4.4vw, 62px);
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+}
+
+.fs-meta p {
+  margin-top: 10px;
+  color: var(--text-dim);
+  font-size: clamp(14px, 1.6vw, 22px);
+}
