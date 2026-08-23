@@ -13,6 +13,7 @@ mod smtc;
 #[cfg(windows)]
 mod thumbbar;
 mod tray;
+mod spicetify;
 mod update;
 
 use std::sync::Arc;
@@ -39,6 +40,22 @@ async fn call(
 #[tauri::command]
 fn connected(state: tauri::State<'_, Arc<DaemonLink>>) -> bool {
     state.is_connected()
+}
+
+/// The Spicetify theme catalogue, cached on disk between runs.
+#[tauri::command]
+async fn spicetify_themes(
+    app: tauri::AppHandle,
+    refresh: bool,
+) -> Result<Vec<spicetify::Theme>, String> {
+    let dir = app
+        .path()
+        .app_cache_dir()
+        .map_err(|e| format!("no cache directory: {e}"))?;
+
+    spicetify::catalogue(dir, refresh)
+        .await
+        .map_err(|e| format!("{e:#}"))
 }
 
 /// Is there a newer release on GitHub? `None` means nothing to do.
@@ -186,7 +203,8 @@ fn main() {
             call,
             connected,
             check_update,
-            apply_update
+            apply_update,
+            spicetify_themes
         ])
         .run(tauri::generate_context!())
         .expect("failed to start the app window");

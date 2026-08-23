@@ -557,6 +557,16 @@ function highlightLyrics() {
  *  show, and the only one expanded by default in Settings. */
 const CHANGELOG = [
   {
+    v: "0.5.0",
+    d: "23 Aug 2026",
+    notes: [
+      "Rustify now looks like Spotify: black shell, dark grey panels, flat cards and small corners, using the client's own colours and spacing rather than the glass look it had",
+      "Spicetify themes are built in. Settings → Appearance browses the community theme repository — 14 themes, 111 colour schemes — and applies any of them to the whole app. No Spicetify install needed",
+      "Only a theme's colours carry over. Its CSS is written against the official client's markup, which Rustify does not share, so it is never fetched",
+      "The New Look option has gone",
+    ],
+  },
+  {
     v: "0.4.1",
     d: "23 Aug 2026",
     notes: [
@@ -860,16 +870,6 @@ async function renderSettings(content) {
     <h1 class="greeting">Settings</h1>
     <div class="settings">
 
-      <div class="newlook-row">
-        <div class="label">
-          <b>New Look</b>
-          <p>A redesigned interface: flat sidebar, segmented tabs, and a
-             floating player bar with the controls on the left. Based on the
-             Spotify Redesign community concept. Switches instantly.</p>
-        </div>
-        <div class="control">${toggleHtml("newLook", newLookOn())}</div>
-      </div>
-
       <div class="set-group">Audio quality</div>
       ${setRow(
         "Streaming quality",
@@ -903,8 +903,8 @@ async function renderSettings(content) {
         "Device name",
         "How this computer appears in Spotify Connect on your other devices.",
         `<input id="set-device" value="${esc(st.deviceName)}" spellcheck="false"
-           style="padding:8px 12px;border-radius:10px;border:1px solid var(--stroke);
-                  background:var(--glass-2);color:var(--text);outline:none;width:220px">`
+           style="padding:8px 12px;border-radius:var(--radius-sm);border:1px solid var(--stroke);
+                  background:var(--field);color:var(--text);outline:none;width:220px">`
       )}
 
       <div class="set-group">Display</div>
@@ -917,6 +917,21 @@ async function renderSettings(content) {
              .join("")}
          </select>`
       )}
+
+      <div class="set-group">Appearance</div>
+      <div class="theme-bar">
+        <div class="label">
+          <b>Theme</b>
+          <p>Spicetify colour schemes, read from the community theme
+             repository. Only the colours carry over — a theme's own CSS is
+             written against the official client's markup, which Rustify does
+             not share.</p>
+        </div>
+        <div class="control">
+          <button class="pill" id="theme-refresh">Refresh</button>
+        </div>
+      </div>
+      <div class="theme-grid" id="theme-grid"></div>
 
       <div class="set-group">Storage</div>
       ${setRow(
@@ -960,7 +975,6 @@ async function renderSettings(content) {
     normalise: content.querySelector('[data-toggle="normalise"]').classList.contains("on"),
     autoplay: content.querySelector('[data-toggle="autoplay"]').classList.contains("on"),
     cacheAudio: content.querySelector('[data-toggle="cacheAudio"]').classList.contains("on"),
-    // newLook is deliberately absent: it is a UI preference, not playback.
     deviceName: content.querySelector("#set-device").value.trim(),
   });
 
@@ -977,12 +991,6 @@ async function renderSettings(content) {
       b.classList.toggle("on");
       const on = b.classList.contains("on");
       b.setAttribute("aria-checked", on);
-
-      // This one is a local theme flag, not a daemon setting.
-      if (b.dataset.toggle === "newLook") {
-        applyNewLook(on);
-        return;
-      }
       push();
     };
   });
@@ -994,6 +1002,10 @@ async function renderSettings(content) {
     applyZoom(Number(e.target.value));
   };
 
+  const grid = content.querySelector("#theme-grid");
+  renderThemes(grid, false);
+  content.querySelector("#theme-refresh").onclick = () => renderThemes(grid, true);
+
   content.querySelector("#set-site").onclick = () =>
     call({ cmd: "openExternal", url: "https://camwooloo.com" });
 
@@ -1003,21 +1015,89 @@ async function renderSettings(content) {
   };
 }
 
-/** Switch between the default skin and the New Look.
- *
- * Purely presentational, so it lives in the UI rather than the daemon: it is
- * a class on <body> that a second stylesheet keys off, which means switching
- * is instant and the default theme is never touched.
- */
-function applyNewLook(on) {
-  localStorage.setItem("rustify.newLook", on ? "1" : "0");
-  document.body.classList.toggle("newlook", !!on);
-  // Card art in the New Look carries a coloured cap derived from the item,
-  // so anything already on screen needs repainting.
-  render();
-}
+/** The catalogue, once per run: it is a network call and it never changes
+ * under us mid-session. */
+let themeCatalogue = null;
 
-const newLookOn = () => localStorage.getItem("rustify.newLook") === "1";
+/** Draw the theme gallery into the settings page. */
+async function renderThemes(grid, refresh) {
+  const current = savedTheme();
+  grid.innerHTML = `<p class="set-note">${refresh ? "Fetching themes…" : "Loading themes…"}</p>`;
+
+  if (refresh || !themeCatalogue) {
+    try {
+      themeCatalogue = await invoke("spicetify_themes", { refresh: !!refresh });
+    } catch (e) {
+      grid.innerHTML = `
+        <p class="set-note">Could not read the theme catalogue: ${esc(String(e))}</p>
+        <button class="pill" id="theme-retry">Try again</button>`;
+      grid.querySelector("#theme-retry").onclick = () => renderThemes(grid, true);
+      return;
+    }
+  }
+
+  // Spotify's own palette first, as the way back out of a theme.
+  const spotify = {
+    name: "Spotify",
+    schemes: [
+      {
+        name: "Default",
+        colors: {
+          main: "121212", sidebar: "121212", player: "000000", card: "181818",
+          text: "ffffff", subtext: "b3b3b3", button: "1ed760",
+          "button-active": "3be477", "selected-row": "1a1a1a",
+        },
+      },
+    ],
+  };
+
+  const swatch = (colors) =>
+    ["main", "card", "button", "text", "subtext"]
+      .map((k) => `<i style="background:#${esc(colors[k] || "888888")}"></i>`)
+      .join("");
+
+  const card = (theme, isDefault) => `
+    <div class="theme-card">
+      <div class="theme-name">${esc(theme.name)}${isDefault ? " <span>built in</span>" : ""}</div>
+      <div class="scheme-list">
+        ${theme.schemes
+          .map((sc) => {
+            const on = isDefault
+              ? !current
+              : current && current.theme === theme.name && current.scheme === sc.name;
+            return `
+              <button class="scheme${on ? " on" : ""}"
+                      data-theme="${esc(theme.name)}" data-scheme="${esc(sc.name)}">
+                <span class="swatches">${swatch(sc.colors)}</span>
+                <span class="scheme-name">${esc(sc.name)}</span>
+              </button>`;
+          })
+          .join("")}
+      </div>
+    </div>`;
+
+  grid.innerHTML = card(spotify, true) + themeCatalogue.map((t) => card(t, false)).join("");
+
+  grid.querySelectorAll(".scheme").forEach((b) => {
+    b.onclick = () => {
+      const themeName = b.dataset.theme;
+      const schemeName = b.dataset.scheme;
+
+      if (themeName === "Spotify") {
+        applyTheme(null);
+      } else {
+        const theme = themeCatalogue.find((t) => t.name === themeName);
+        const scheme = theme && theme.schemes.find((sc) => sc.name === schemeName);
+        if (!scheme) return;
+        applyTheme({ theme: themeName, scheme: schemeName, colors: scheme.colors });
+      }
+
+      grid.querySelectorAll(".scheme").forEach((o) => o.classList.remove("on"));
+      b.classList.add("on");
+      toast(themeName === "Spotify" ? "Back to Spotify's colours" : `${themeName} · ${schemeName}`);
+    };
+  });
+}
 
 /** Interface scale. Kept in the UI because it is purely presentational. */
 function applyZoom(percent) {
@@ -1027,7 +1107,141 @@ function applyZoom(percent) {
 }
 
 applyZoom(Number(localStorage.getItem("rustify.zoom") || 100));
-document.body.classList.toggle("newlook", newLookOn());
+
+/* ---------------------------------------------------------- theming */
+
+/* Spicetify themes are colour schemes: a palette named after the surfaces of
+ * the Spotify client. Rustify's variables describe those same surfaces, so a
+ * scheme is applied by mapping one set of names onto the other and filling in
+ * the shades a scheme does not carry.
+ *
+ * Only colours cross over. A theme's user.css is written against Spotify's
+ * own class names and would find nothing here, so it is never fetched. */
+
+const THEME_KEY = "rustify.theme";
+
+/** "1db954" or "#1db954" or "abc" -> [r, g, b]. */
+function parseHex(hex) {
+  let h = String(hex || "").replace("#", "").trim();
+  if (h.length === 3) h = h.split("").map((c) => c + c).join("");
+  if (h.length === 8) h = h.slice(0, 6);
+  if (h.length !== 6 || !/^[0-9a-f]{6}$/i.test(h)) return null;
+  return [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16));
+}
+
+const toHex = (rgb) =>
+  "#" + rgb.map((v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, "0")).join("");
+
+/** Blend two colours. `t` of 0 is all `a`, 1 is all `b`. */
+const mix = (a, b, t) => a.map((v, i) => v + (b[i] - v) * t);
+
+/** Perceived brightness, for deciding what reads on top of a colour. */
+const luma = ([r, g, b]) => (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+
+/** Turn a Spicetify palette into the variables the stylesheet reads.
+ *
+ * A scheme names the surfaces it cares about and leaves the rest to the
+ * theme's CSS, which we do not have — so every shade in between is derived
+ * from the ones it does name, by moving a surface towards the text colour.
+ * That is what keeps hovers and menus visible on a light scheme instead of
+ * washing out against a white tint meant for a dark one.
+ */
+function schemeToVars(colors) {
+  const pick = (...keys) => {
+    for (const k of keys) {
+      const rgb = parseHex(colors[k]);
+      if (rgb) return rgb;
+    }
+    return null;
+  };
+
+  const main = pick("main", "background", "base") || [18, 18, 18];
+  const text = pick("text", "foreground") || [255, 255, 255];
+  const subtext = pick("subtext", "text-secondary") || mix(text, main, 0.35);
+  const button = pick("button", "accent", "primary") || [30, 215, 96];
+  const buttonActive = pick("button-active", "button-hover") || mix(button, text, 0.2);
+  const card = pick("card", "main-elevated") || mix(main, text, 0.04);
+  const sidebar = pick("sidebar", "main") || main;
+  const player = pick("player", "main") || main;
+  const selected = pick("selected-row", "highlight") || mix(main, text, 0.08);
+  const shadow = pick("shadow") || [0, 0, 0];
+
+  // A tint the same hue as the text, so it shows on light and dark alike.
+  const tint = (alpha) => `rgba(${text.map(Math.round).join(", ")}, ${alpha})`;
+
+  return {
+    "--accent": toHex(button),
+    "--accent-hi": toHex(buttonActive),
+    "--accent-rgb": button.map(Math.round).join(", "),
+    "--on-accent": luma(button) > 0.55 ? "#000" : "#fff",
+
+    "--bg-0": toHex(player),
+    "--bg-1": toHex(player),
+    "--surface": toHex(main),
+    "--sidebar": toHex(sidebar),
+    "--surface-2": toHex(mix(main, text, 0.08)),
+    "--card": toHex(card),
+    "--card-hi": toHex(mix(card, text, 0.1)),
+    "--field": toHex(mix(main, text, 0.1)),
+    "--chip": toHex(mix(main, text, 0.09)),
+    "--menu": toHex(mix(card, text, 0.06)),
+    "--row-hover": toHex(selected),
+
+    "--text": toHex(text),
+    "--text-dim": toHex(subtext),
+    "--text-mute": toHex(mix(subtext, main, 0.3)),
+
+    "--hover": tint(0.1),
+    "--hover-hi": tint(0.16),
+    "--tint": tint(0.16),
+    "--tint-soft": tint(0.07),
+    "--stroke-2": tint(0.25),
+    "--hairline": tint(0.08),
+    "--shadow": `0 8px 24px rgba(${shadow.map(Math.round).join(", ")}, 0.5)`,
+  };
+}
+
+/** Apply a scheme, or clear back to Spotify's own colours with no argument. */
+function applyTheme(entry) {
+  let style = document.getElementById("spice-vars");
+  if (!entry) {
+    if (style) style.remove();
+    document.documentElement.style.colorScheme = "dark";
+    localStorage.removeItem(THEME_KEY);
+    return;
+  }
+
+  const vars = schemeToVars(entry.colors);
+  const body = Object.entries(vars)
+    .map(([k, v]) => `${k}:${v};`)
+    .join(" ");
+
+  if (!style) {
+    style = el("style", { id: "spice-vars" });
+    document.head.append(style);
+  }
+  style.textContent = `:root { ${body} }`;
+
+  // Form controls and scrollbars follow this, not our variables.
+  document.documentElement.style.colorScheme =
+    luma(parseHex(vars["--surface"])) > 0.5 ? "light" : "dark";
+
+  localStorage.setItem(THEME_KEY, JSON.stringify(entry));
+}
+
+/** The saved theme, or null for Spotify's own. */
+function savedTheme() {
+  try {
+    const raw = localStorage.getItem(THEME_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+// Applied before anything renders: the colours are stored with the choice, so
+// startup never waits on the network to avoid a flash of the wrong palette.
+applyTheme(savedTheme());
 
 /** Render a failure the user can act on, instead of an empty screen. */
 function renderError(content, message) {
