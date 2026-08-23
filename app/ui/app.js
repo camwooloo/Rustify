@@ -112,6 +112,29 @@ const art = (url, cls = "") =>
     ? `<img class="${cls}" src="${esc(url)}" alt="" loading="lazy">`
     : `<div class="thumb ${cls}"></div>`;
 
+/* An image whose address 404s draws the browser's broken-image glyph: a torn
+ * page in the corner of an otherwise styled circle. Every rule in the
+ * stylesheet sizes `img` and `.thumb` together, so swapping the one for the
+ * other loses the glyph and keeps the layout.
+ *
+ * stats.fm is where this shows up: it hands out a Spotify avatar address for
+ * every profile, including the ones whose owner never set a picture, and that
+ * address is a 404 rather than a default image. Error events on images do not
+ * bubble, hence the capture. */
+document.addEventListener(
+  "error",
+  (event) => {
+    const img = event.target;
+    if (!(img instanceof HTMLImageElement)) return;
+
+    const thumb = el("div", { className: `thumb ${img.className}`.trim() });
+    // Some placeholders say what is missing rather than sitting empty.
+    if (img.dataset.fallback) thumb.innerHTML = icon(img.dataset.fallback);
+    img.replaceWith(thumb);
+  },
+  true
+);
+
 function toast(message, severity = "info") {
   const node = el("div", { className: `toast ${severity}`, textContent: message });
   $("#toasts").append(node);
@@ -248,6 +271,8 @@ async function render() {
       return renderBrowse(content);
     case "stats":
       return renderStats(content);
+    case "themes":
+      return renderThemesPage(content);
     default:
       content.innerHTML = "";
   }
@@ -559,6 +584,14 @@ function highlightLyrics() {
 /** Newest first. The top entry is what the bell and the post-update note
  *  show, and the only one expanded by default in Settings. */
 const CHANGELOG = [
+  {
+    v: "0.6.1",
+    d: "23 Aug 2026",
+    notes: [
+      "Themes have a page of their own now, reached from Settings, rather than a gallery to scroll past in the middle of the settings list",
+      "A profile with no picture shows a placeholder instead of a broken image: stats.fm hands out a Spotify avatar address for everyone, including those who never set one",
+    ],
+  },
   {
     v: "0.6.0",
     d: "23 Aug 2026",
@@ -931,19 +964,11 @@ async function renderSettings(content) {
       )}
 
       <div class="set-group">Appearance</div>
-      <div class="theme-bar">
-        <div class="label">
-          <b>Theme</b>
-          <p>Spicetify colour schemes, read from the community theme
-             repository. Only the colours carry over — a theme's own CSS is
-             written against the official client's markup, which Rustify does
-             not share.</p>
-        </div>
-        <div class="control">
-          <button class="pill" id="theme-refresh">Refresh</button>
-        </div>
-      </div>
-      <div class="theme-grid" id="theme-grid"></div>
+      ${setRow(
+        "Theme",
+        "Spicetify colour schemes, and any theme installed on this computer.",
+        `<button class="pill" id="set-themes">Browse themes</button>`
+      )}
 
       <div class="set-group">Storage</div>
       ${setRow(
@@ -1014,9 +1039,7 @@ async function renderSettings(content) {
     applyZoom(Number(e.target.value));
   };
 
-  const grid = content.querySelector("#theme-grid");
-  renderThemes(grid, false);
-  content.querySelector("#theme-refresh").onclick = () => renderThemes(grid, true);
+  content.querySelector("#set-themes").onclick = () => navigate("themes");
 
   content.querySelector("#set-site").onclick = () =>
     call({ cmd: "openExternal", url: "https://camwooloo.com" });
@@ -1031,7 +1054,29 @@ async function renderSettings(content) {
  * under us mid-session. */
 let themeCatalogue = null;
 
-/** Draw the theme gallery into the settings page. */
+/** The themes page: the gallery had outgrown a row in the settings list. */
+async function renderThemesPage(content) {
+  content.innerHTML = `
+    <h1 class="greeting">Appearance</h1>
+    <div class="theme-bar">
+      <div class="label">
+        <p>Spicetify colour schemes, read from the community theme repository
+           and from any Spicetify install on this computer. Only the colours
+           carry over — a theme's own CSS is written against the official
+           client's markup, which Rustify does not share.</p>
+      </div>
+      <div class="control">
+        <button class="pill" id="theme-refresh">Refresh</button>
+      </div>
+    </div>
+    <div class="theme-grid" id="theme-grid"></div>`;
+
+  const grid = content.querySelector("#theme-grid");
+  renderThemes(grid, false);
+  content.querySelector("#theme-refresh").onclick = () => renderThemes(grid, true);
+}
+
+/** Draw the theme gallery into a grid element. */
 async function renderThemes(grid, refresh) {
   const current = savedTheme();
   grid.innerHTML = `<p class="set-note">${refresh ? "Fetching themes…" : "Loading themes…"}</p>`;
@@ -1194,7 +1239,11 @@ function renderStatsConnect(content, note) {
         .map(
           (u) => `
           <button class="device-row" data-id="${esc(u.id)}">
-            ${u.image ? `<img src="${esc(u.image)}" alt="" />` : `<span class="thumb"></span>`}
+            ${
+              u.image
+                ? `<img src="${esc(u.image)}" alt="" data-fallback="artist" />`
+                : `<div class="thumb">${icon("artist")}</div>`
+            }
             <span class="meta">
               <span class="title">${esc(u.name)}</span>
               <span class="sub">${esc(u.id)}</span>
@@ -1222,7 +1271,7 @@ function statsRow(entry, index) {
   return `
     <button class="stats-row${entry.uri ? "" : " noplay"}" data-uri="${esc(entry.uri || "")}">
       <span class="rank">${index + 1}</span>
-      ${entry.image ? `<img src="${esc(entry.image)}" alt="" />` : `<span class="thumb"></span>`}
+      ${entry.image ? `<img src="${esc(entry.image)}" alt="" />` : `<div class="thumb"></div>`}
       <span class="meta">
         <span class="title">${esc(entry.name)}</span>
         <span class="sub">${esc(entry.sub)}</span>
@@ -1262,7 +1311,11 @@ async function renderStats(content) {
 
   content.innerHTML = `
     <div class="stats-head">
-      ${data.account.image ? `<img src="${esc(data.account.image)}" alt="" />` : `<span class="thumb"></span>`}
+      ${
+        data.account.image
+          ? `<img src="${esc(data.account.image)}" alt="" data-fallback="artist" />`
+          : `<div class="thumb">${icon("artist")}</div>`
+      }
       <div class="meta">
         <span class="kind">STATS.FM</span>
         <h1>${esc(data.account.name)}</h1>

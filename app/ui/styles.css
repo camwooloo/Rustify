@@ -87,6 +87,16 @@ svg {
   flex: none;
 }
 
+/* Placeholders stand in for images, which are replaced elements: without a
+   block box they would ignore the width and height every rule gives them. */
+.thumb {
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}
+
+.thumb svg { width: 45%; height: 45%; fill: var(--text-mute); }
+
 html,
 body {
   height: 100%;
@@ -1689,6 +1699,7 @@ select option:hover { background: rgba(var(--accent-rgb), 0.28); }
 
 .theme-bar .label { flex: 1; }
 .theme-bar .label b { font-size: 14.5px; }
+.theme-bar .label p:first-child { margin-top: 0; }
 
 .theme-bar .label p {
   color: var(--text-mute);
