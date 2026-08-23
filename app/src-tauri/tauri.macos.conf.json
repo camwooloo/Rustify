@@ -1,0 +1,14 @@
+{
+  "bundle": {
+    "targets": [
+      "dmg"
+    ],
+    "resources": {
+      "binaries/rustifyd": "rustifyd",
+      "binaries/rustify-ctl": "rustify-ctl"
+    },
+    "macOS": {
+      "minimumSystemVersion": "10.15"
+    }
+  }
+}

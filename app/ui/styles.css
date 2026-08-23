@@ -2053,3 +2053,7 @@ body.fs #player { background: transparent; }
   color: var(--text-dim);
   font-size: clamp(14px, 1.6vw, 22px);
 }
+
+.search-filters { padding: 6px 0 16px; }
+.search-filters .chip:disabled { opacity: 0.4; cursor: default; }
+.search-filters .chip:disabled:hover { background: var(--chip); }

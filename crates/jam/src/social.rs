@@ -18,8 +18,6 @@ use serde::Deserialize;
 use spotify_proto::{LyricLine, Lyrics};
 use tracing::debug;
 
-/// Buddy list endpoint. Note the `guc-` host: presence is served separately
-/// from the main spclient base, so this is an absolute URL.
 // ---------------------------------------------------------------------------
 // Lyrics
 // ---------------------------------------------------------------------------

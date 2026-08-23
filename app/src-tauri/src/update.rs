@@ -96,12 +96,18 @@ pub async fn check() -> Option<UpdateInfo> {
         return None;
     }
 
-    // Prefer the installer; it carries both executables.
-    let asset = release
-        .assets
-        .iter()
-        .find(|a| a.name.ends_with("-setup.exe") || a.name.ends_with(".msi"))
-        .or_else(|| release.assets.iter().find(|a| a.name.ends_with(".exe")))?;
+    // Each release carries one download per platform, so pick the one this
+    // build can actually use rather than whatever is listed first.
+    let asset = release.assets.iter().find(|a| {
+        let name = a.name.to_ascii_lowercase();
+        if cfg!(target_os = "windows") {
+            name.ends_with("-setup.exe") || name.ends_with(".msi")
+        } else if cfg!(target_os = "macos") {
+            name.ends_with(".dmg")
+        } else {
+            name.ends_with(".appimage")
+        }
+    })?;
 
     info!("update available: v{version}");
     Some(UpdateInfo {
@@ -131,6 +137,16 @@ fn is_plain_installer_name(name: &str) -> bool {
 /// `/R` to relaunch the app afterwards.
 const INSTALL_SILENTLY: [&str; 3] = ["/S", "/UPDATE", "/R"];
 
+/// Can an update install itself here, or does it need a human?
+///
+/// Only the Windows installer can: NSIS takes switches for a silent install
+/// and knows where the app lives. A dmg has to be opened and dragged, and an
+/// AppImage is a file the person chose where to put — neither is something to
+/// do behind someone's back.
+pub fn installs_itself() -> bool {
+    cfg!(target_os = "windows")
+}
+
 /// Download the installer and hand off to it.
 ///
 /// `on_progress` is called with a whole percentage as the download runs, and
@@ -142,6 +158,12 @@ const INSTALL_SILENTLY: [&str; 3] = ["/S", "/UPDATE", "/R"];
 /// and the only one that is safe — quitting any earlier would leave nothing
 /// on screen while the download's replacement is still being written.
 pub async fn apply(url: &str, on_progress: impl Fn(u8)) -> Result<()> {
+    if !installs_itself() {
+        return Err(anyhow!(
+            "this build cannot install its own updates; open the download instead"
+        ));
+    }
+
     // Only ever fetch from the project's own release host.
     if !url.starts_with("https://github.com/") && !url.starts_with("https://objects.githubusercontent.com/")
     {

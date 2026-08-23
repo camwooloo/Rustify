@@ -838,6 +838,15 @@ function changelogHtml() {
   ).join("");
 }
 
+/* Whether this build can install an update itself. Asked once, so the update
+ * bar can decide what its button does without waiting on a promise. */
+let canSelfInstall = true;
+invoke("update_installs_itself")
+  .then((self) => {
+    canSelfInstall = !!self;
+  })
+  .catch(() => {});
+
 /** Ask GitHub whether there is a newer release, and offer it if so. */
 function checkForUpdate() {
   invoke("check_update")
@@ -864,6 +873,20 @@ function showUpdateBar(info) {
   const fill = bar.querySelector(".upd-fill");
 
   bar.querySelector(".upd-x").onclick = () => bar.remove();
+
+  // On macOS and Linux there is nothing to hand off to: a dmg is dragged and
+  // an AppImage lives wherever its owner put it. Those builds send people to
+  // the download instead of pretending to install it.
+  if (!canSelfInstall) {
+    const go = bar.querySelector(".upd-go");
+    go.textContent = "Download";
+    go.onclick = () => {
+      call({ cmd: "openExternal", url: info.url });
+      bar.remove();
+    };
+    return;
+  }
+
   bar.querySelector(".upd-go").onclick = async () => {
     bar.classList.add("busy");
     text.textContent = "Downloading the update…";
@@ -1948,6 +1971,22 @@ $("#search-input").addEventListener("input", (e) => {
   }, 250);
 });
 
+/* Which kinds of result the search page is showing.
+ *
+ * Kept outside the render so it survives typing: narrowing to Songs and then
+ * refining the query should stay narrowed, the way it does in the real
+ * client. A filter with no results is disabled rather than hidden, so the
+ * row of filters does not move under the pointer as results change. */
+const SEARCH_FILTERS = [
+  ["all", "All"],
+  ["tracks", "Songs"],
+  ["artists", "Artists"],
+  ["albums", "Albums"],
+  ["playlists", "Playlists"],
+];
+
+let searchFilter = "all";
+
 async function renderSearch(content, query) {
   if (!query) {
     content.innerHTML = `<h2 class="section-title">Search Spotify</h2>
@@ -1962,11 +2001,43 @@ async function renderSearch(content, query) {
     return renderError(content, String(e));
   }
 
+  const counts = {
+    all: (res.tracks?.length || 0) + (res.artists?.length || 0) +
+      (res.albums?.length || 0) + (res.playlists?.length || 0),
+    tracks: res.tracks?.length || 0,
+    artists: res.artists?.length || 0,
+    albums: res.albums?.length || 0,
+    playlists: res.playlists?.length || 0,
+  };
+
+  // A filter narrowed to something this search has none of would show an
+  // empty page and look broken, so it falls back to everything.
+  if (!counts[searchFilter]) searchFilter = "all";
+
+  const showing = (kind) => searchFilter === "all" || searchFilter === kind;
+  const heading = (title) => (searchFilter === "all" ? `<h2 class="section-title">${title}</h2>` : "");
+
   content.innerHTML = `
-    ${res.tracks?.length ? `<h2 class="section-title">Songs</h2>${trackTable(res.tracks)}` : ""}
-    ${res.artists?.length ? `<h2 class="section-title">Artists</h2>${cardGrid(res.artists, "artist")}` : ""}
-    ${res.albums?.length ? `<h2 class="section-title">Albums</h2>${cardGrid(res.albums, "album")}` : ""}
-    ${res.playlists?.length ? `<h2 class="section-title">Playlists</h2>${cardGrid(res.playlists, "playlist")}` : ""}`;
+    <div class="lib-filters search-filters">
+      ${SEARCH_FILTERS.map(
+        ([key, label]) => `
+        <button class="chip${key === searchFilter ? " active" : ""}"
+                data-filter="${key}" ${counts[key] ? "" : "disabled"}>${label}</button>`
+      ).join("")}
+    </div>
+    ${showing("tracks") && counts.tracks ? `${heading("Songs")}${trackTable(res.tracks)}` : ""}
+    ${showing("artists") && counts.artists ? `${heading("Artists")}${cardGrid(res.artists, "artist")}` : ""}
+    ${showing("albums") && counts.albums ? `${heading("Albums")}${cardGrid(res.albums, "album")}` : ""}
+    ${showing("playlists") && counts.playlists ? `${heading("Playlists")}${cardGrid(res.playlists, "playlist")}` : ""}
+    ${counts.all ? "" : `<p class="set-note">Nothing found for “${esc(query)}”.</p>`}`;
+
+  content.querySelectorAll("[data-filter]").forEach((b) => {
+    b.onclick = () => {
+      searchFilter = b.dataset.filter;
+      renderSearch(content, query);
+    };
+  });
+
   wireCards(content);
   wireTracks(content, res.tracks || []);
 }

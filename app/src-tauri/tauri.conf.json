@@ -26,31 +26,19 @@
   },
   "bundle": {
     "active": true,
-    "targets": [
-      "nsis"
-    ],
+    "targets": [],
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
       "icons/128x128@2x.png",
       "icons/icon.ico",
+      "icons/icon.icns",
       "icons/icon.png"
     ],
-    "resources": {
-      "binaries/rustifyd.exe": "rustifyd.exe",
-      "binaries/rustify-ctl.exe": "rustify-ctl.exe"
-    },
     "shortDescription": "A fast Spotify client in Rust",
     "longDescription": "Rustify plays Spotify from a lightweight background process, so music keeps going with the window closed.",
     "publisher": "camwooloo",
     "copyright": "camwooloo",
-    "category": "Music",
-    "windows": {
-      "nsis": {
-        "installMode": "currentUser",
-        "displayLanguageSelector": false,
-        "installerHooks": "installer-hooks.nsh"
-      }
-    }
+    "category": "Music"
   }
 }

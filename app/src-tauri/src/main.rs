@@ -174,6 +174,13 @@ async fn statsfm_overview(user: String, range: String) -> Result<statsfm::Overvi
         .map_err(|e| format!("{e:#}"))
 }
 
+/// Can this build install an update itself? False on macOS and Linux, where
+/// the window offers the download instead.
+#[tauri::command]
+fn update_installs_itself() -> bool {
+    update::installs_itself()
+}
+
 /// Is there a newer release on GitHub? `None` means nothing to do.
 #[tauri::command]
 async fn check_update() -> Option<update::UpdateInfo> {
@@ -320,6 +327,7 @@ fn main() {
             connected,
             check_update,
             apply_update,
+            update_installs_itself,
             spicetify_themes,
             marketplace,
             marketplace_schemes,
