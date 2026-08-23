@@ -13,6 +13,7 @@ mod smtc;
 #[cfg(windows)]
 mod thumbbar;
 mod tray;
+mod marketplace;
 mod spicetify;
 mod statsfm;
 mod update;
@@ -41,6 +42,35 @@ async fn call(
 #[tauri::command]
 fn connected(state: tauri::State<'_, Arc<DaemonLink>>) -> bool {
     state.is_connected()
+}
+
+/// One kind of Marketplace listing: extensions, themes, apps or snippets.
+#[tauri::command]
+async fn marketplace(
+    app: tauri::AppHandle,
+    kind: String,
+    refresh: bool,
+) -> Result<Vec<marketplace::Item>, String> {
+    let dir = app
+        .path()
+        .app_cache_dir()
+        .map_err(|e| format!("no cache directory: {e}"))?;
+
+    marketplace::catalogue(dir, kind, refresh)
+        .await
+        .map_err(|e| format!("{e:#}"))
+}
+
+/// A marketplace theme's colour schemes, fetched when it is opened.
+#[tauri::command]
+async fn marketplace_schemes(
+    repo: String,
+    branch: String,
+    path: String,
+) -> Result<Vec<spicetify::Scheme>, String> {
+    marketplace::schemes(&repo, &branch, &path)
+        .await
+        .map_err(|e| format!("{e:#}"))
 }
 
 /// The Spicetify theme catalogue, cached on disk between runs.
@@ -220,6 +250,8 @@ fn main() {
             check_update,
             apply_update,
             spicetify_themes,
+            marketplace,
+            marketplace_schemes,
             statsfm_search,
             statsfm_overview
         ])

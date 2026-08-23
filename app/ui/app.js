@@ -184,6 +184,7 @@ $("#btn-menu").onclick = () => navigate("settings");
 $("#btn-home").onclick = () => navigate("home");
 $("#btn-browse").onclick = () => navigate("browse");
 $("#btn-stats").onclick = () => navigate("stats");
+$("#btn-market").onclick = () => navigate("market");
 
 $("#btn-account").onclick = () =>
   toast(
@@ -273,6 +274,8 @@ async function render() {
       return renderStats(content);
     case "themes":
       return renderThemesPage(content);
+    case "market":
+      return renderMarket(content, false);
     default:
       content.innerHTML = "";
   }
@@ -584,6 +587,16 @@ function highlightLyrics() {
 /** Newest first. The top entry is what the bell and the post-update note
  *  show, and the only one expanded by default in Settings. */
 const CHANGELOG = [
+  {
+    v: "0.7.0",
+    d: "23 Aug 2026",
+    notes: [
+      "A Marketplace, from the cart button next to the back and forward arrows: the same catalogue Spicetify's own marketplace lists — themes, extensions, snippets, apps — with search, sorting and previews",
+      "Any theme there applies its colours to Rustify on the spot, whichever of its schemes you pick",
+      "The Installed tab shows themes Spicetify has put on this computer; those apply here too",
+      "Extensions, apps and snippets are listed to browse and open on GitHub. They are written against the official client's markup and APIs, so they run there rather than here",
+    ],
+  },
   {
     v: "0.6.2",
     d: "23 Aug 2026",
@@ -1073,6 +1086,7 @@ async function renderThemesPage(content) {
            client's markup, which Rustify does not share.</p>
       </div>
       <div class="control">
+        <button class="pill" id="theme-market">Marketplace</button>
         <button class="pill" id="theme-refresh">Refresh</button>
       </div>
     </div>
@@ -1081,6 +1095,7 @@ async function renderThemesPage(content) {
   const grid = content.querySelector("#theme-grid");
   renderThemes(grid, false);
   content.querySelector("#theme-refresh").onclick = () => renderThemes(grid, true);
+  content.querySelector("#theme-market").onclick = () => navigate("market");
 }
 
 /** Draw the theme gallery into a grid element. */
@@ -1373,6 +1388,262 @@ async function renderStats(content) {
       call({ cmd: "loadTracks", uris: [uri], startPlaying: true });
       toast("Playing");
     };
+  });
+}
+
+/* ------------------------------------------------------ marketplace */
+
+/* The same catalogue Spicetify's Marketplace lists, read from the same
+ * places: GitHub topics for extensions, themes and apps, and the snippet
+ * file in the Marketplace's own repository.
+ *
+ * What can be used here differs by kind, and the page says so rather than
+ * offering buttons that quietly do nothing. A theme's colours apply to
+ * Rustify, because its variables describe the same surfaces. The CSS half of
+ * a theme, and every snippet, extension and app, is written against the
+ * official client's markup and APIs — so those are listed, described and
+ * linked, and left to run where they belong. */
+
+const MARKET_TABS = [
+  ["theme", "Themes"],
+  ["extension", "Extensions"],
+  ["snippet", "Snippets"],
+  ["app", "Apps"],
+  ["installed", "Installed"],
+];
+
+const MARKET_SORTS = [
+  ["stars", "Stars"],
+  ["name", "Name"],
+  ["updated", "Recently updated"],
+];
+
+let marketTab = "theme";
+let marketQuery = "";
+let marketSort = "stars";
+const marketCache = {};
+
+/** What a kind can do inside Rustify, said once at the top of each tab. */
+const MARKET_NOTE = {
+  theme:
+    "Colours apply to Rustify. A theme's own CSS changes the official client's layout, which Rustify does not share, so that half stays in Spotify.",
+  extension:
+    "Extensions run inside the official client, calling Spotify's own APIs. They are listed here to browse — installing them is Spicetify's job, not Rustify's.",
+  snippet:
+    "Snippets are small pieces of CSS aimed at the official client's markup. Copy one for use in Spicetify.",
+  app: "Apps are whole pages added to the official client. Rustify cannot host them; browse and open them on GitHub.",
+  installed: "Themes Spicetify has installed on this computer. These apply to Rustify too.",
+};
+
+async function marketItems(kind, refresh) {
+  if (kind === "installed") {
+    const themes = await invoke("spicetify_themes", { refresh: false });
+    return themes
+      .filter((t) => t.local)
+      .map((t) => ({
+        kind: "installed",
+        name: t.name,
+        description: `${t.schemes.length} colour scheme${t.schemes.length === 1 ? "" : "s"}`,
+        authors: [],
+        stars: 0,
+        preview: null,
+        repo: null,
+        tags: ["installed"],
+        schemes: t.schemes,
+      }));
+  }
+
+  if (!refresh && marketCache[kind]) return marketCache[kind];
+  const items = await invoke("marketplace", { kind, refresh: !!refresh });
+  marketCache[kind] = items;
+  return items;
+}
+
+/** Apply one scheme and remember it, as the theme gallery does. */
+function useScheme(themeName, scheme) {
+  applyTheme({ theme: themeName, scheme: scheme.name, colors: scheme.colors });
+  toast(`${themeName} · ${scheme.name}`);
+}
+
+/** Offer a theme's schemes inside its own card. */
+function showSchemes(card, item, schemes) {
+  const list = card.querySelector(".mk-schemes");
+  if (schemes.length === 1) return useScheme(item.name, schemes[0]);
+
+  list.innerHTML = schemes
+    .map(
+      (sc, i) => `
+      <button class="scheme" data-scheme="${i}">
+        <span class="swatches">
+          ${["main", "card", "button", "text", "subtext"]
+            .map((k) => `<i style="background:#${esc(sc.colors[k] || "888888")}"></i>`)
+            .join("")}
+        </span>
+        <span class="scheme-name">${esc(sc.name)}</span>
+      </button>`
+    )
+    .join("");
+
+  list.querySelectorAll("[data-scheme]").forEach((b) => {
+    b.onclick = () => {
+      useScheme(item.name, schemes[Number(b.dataset.scheme)]);
+      list.querySelectorAll(".scheme").forEach((o) => o.classList.remove("on"));
+      b.classList.add("on");
+    };
+  });
+}
+
+function marketCard(item, index) {
+  const stars = item.stars ? `<span class="mk-stars">★ ${item.stars.toLocaleString()}</span>` : "";
+  const by = item.authors?.length ? esc(item.authors.join(", ")) : "";
+  const canColour = item.kind === "installed" || (item.kind === "theme" && item.schemesPath);
+
+  return `
+    <div class="mk-card" data-card="${index}">
+      <div class="mk-shot">
+        ${item.preview ? `<img src="${esc(item.preview)}" alt="" loading="lazy" />` : `<div class="thumb"></div>`}
+      </div>
+      <div class="mk-head">
+        <span class="mk-name">${esc(item.name)}</span>
+        ${stars}
+      </div>
+      ${by ? `<div class="mk-by">${by}</div>` : ""}
+      ${item.description ? `<p class="mk-desc">${esc(item.description)}</p>` : ""}
+      <div class="mk-tags">
+        ${(item.tags || [])
+          .map((t) => `<span class="mk-tag${t === "external JS" ? " warn" : ""}">${esc(t)}</span>`)
+          .join("")}
+        ${item.updated ? `<span class="mk-when">${esc(item.updated)}</span>` : ""}
+      </div>
+      <div class="mk-schemes"></div>
+      <div class="mk-actions">
+        ${canColour ? `<button class="pill accent" data-use>Use colours</button>` : ""}
+        ${item.code ? `<button class="pill" data-copy>Copy CSS</button>` : ""}
+        ${item.url ? `<button class="pill" data-open>GitHub</button>` : ""}
+      </div>
+    </div>`;
+}
+
+function marketSorted(items) {
+  const query = marketQuery.trim().toLowerCase();
+  const matches = query
+    ? items.filter((i) =>
+        [i.name, i.description, (i.authors || []).join(" ")]
+          .join(" ")
+          .toLowerCase()
+          .includes(query)
+      )
+    : items.slice();
+
+  if (marketSort === "name") matches.sort((a, b) => a.name.localeCompare(b.name));
+  else if (marketSort === "updated")
+    matches.sort((a, b) => String(b.updated || "").localeCompare(String(a.updated || "")));
+  else matches.sort((a, b) => b.stars - a.stars || a.name.localeCompare(b.name));
+
+  return matches;
+}
+
+async function renderMarket(content, refresh) {
+  content.innerHTML = `
+    <div class="mk-top">
+      <h1 class="greeting">Marketplace</h1>
+      <div class="mk-controls">
+        <input id="mk-search" placeholder="Search…" value="${esc(marketQuery)}" autocomplete="off" />
+        <select id="mk-sort">
+          ${MARKET_SORTS.map(
+            ([key, label]) =>
+              `<option value="${key}" ${key === marketSort ? "selected" : ""}>${label}</option>`
+          ).join("")}
+        </select>
+        <button class="pill" id="mk-refresh">Refresh</button>
+      </div>
+    </div>
+    <div class="lib-filters mk-tabs">
+      ${MARKET_TABS.map(
+        ([key, label]) =>
+          `<button class="chip${key === marketTab ? " active" : ""}" data-tab="${key}">${label}</button>`
+      ).join("")}
+    </div>
+    <p class="set-note mk-note">${esc(MARKET_NOTE[marketTab])}</p>
+    <div class="mk-grid" id="mk-grid"><p class="set-note">Loading…</p></div>`;
+
+  const grid = content.querySelector("#mk-grid");
+
+  content.querySelectorAll("[data-tab]").forEach((b) => {
+    b.onclick = () => {
+      marketTab = b.dataset.tab;
+      renderMarket(content, false);
+    };
+  });
+
+  content.querySelector("#mk-refresh").onclick = () => renderMarket(content, true);
+
+  content.querySelector("#mk-sort").onchange = (e) => {
+    marketSort = e.target.value;
+    renderMarket(content, false);
+  };
+
+  const search = content.querySelector("#mk-search");
+  let timer = null;
+  search.oninput = () => {
+    clearTimeout(timer);
+    timer = setTimeout(() => {
+      marketQuery = search.value;
+      renderMarket(content, false);
+    }, 250);
+  };
+
+  let items;
+  try {
+    items = await marketItems(marketTab, refresh);
+  } catch (e) {
+    grid.innerHTML = `<p class="set-note">Could not read the catalogue: ${esc(String(e))}</p>`;
+    return;
+  }
+
+  const shown = marketSorted(items);
+  if (!shown.length) {
+    grid.innerHTML = `<p class="set-note">Nothing matches “${esc(marketQuery)}”.</p>`;
+    return;
+  }
+
+  grid.innerHTML = shown.map(marketCard).join("");
+
+  grid.querySelectorAll("[data-card]").forEach((card) => {
+    const item = shown[Number(card.dataset.card)];
+
+    card.querySelector("[data-open]")?.addEventListener("click", () =>
+      call({ cmd: "openExternal", url: item.url })
+    );
+
+    card.querySelector("[data-copy]")?.addEventListener("click", async () => {
+      await navigator.clipboard.writeText(item.code || "");
+      toast("Snippet copied");
+    });
+
+    card.querySelector("[data-use]")?.addEventListener("click", async (e) => {
+      const button = e.currentTarget;
+      // Installed themes are already read from disk; catalogue ones have
+      // their colours fetched now rather than for every card up front.
+      if (item.schemes) return showSchemes(card, item, item.schemes);
+
+      button.disabled = true;
+      button.textContent = "Reading…";
+      try {
+        const schemes = await invoke("marketplace_schemes", {
+          repo: item.repo,
+          branch: item.branch || "main",
+          path: item.schemesPath,
+        });
+        item.schemes = schemes;
+        showSchemes(card, item, schemes);
+      } catch (err) {
+        toast(`No colours could be read: ${String(err)}`, "error");
+      } finally {
+        button.disabled = false;
+        button.textContent = "Use colours";
+      }
+    });
   });
 }
 

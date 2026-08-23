@@ -69,7 +69,7 @@ struct TreeEntry {
 /// Values are hex with or without the leading `#`, and anything that is not a
 /// colour is dropped rather than rejected — these files are written by hand,
 /// and one stray line should not cost the reader a whole theme.
-fn parse_color_ini(text: &str) -> Vec<Scheme> {
+pub(crate) fn parse_color_ini(text: &str) -> Vec<Scheme> {
     let mut schemes: Vec<Scheme> = Vec::new();
 
     for line in text.lines() {
