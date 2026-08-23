@@ -14,6 +14,7 @@ mod smtc;
 mod thumbbar;
 mod tray;
 mod spicetify;
+mod statsfm;
 mod update;
 
 use std::sync::Arc;
@@ -54,6 +55,20 @@ async fn spicetify_themes(
         .map_err(|e| format!("no cache directory: {e}"))?;
 
     spicetify::catalogue(dir, refresh)
+        .await
+        .map_err(|e| format!("{e:#}"))
+}
+
+/// Find a stats.fm profile by name.
+#[tauri::command]
+async fn statsfm_search(query: String) -> Result<Vec<statsfm::Account>, String> {
+    statsfm::search(&query).await.map_err(|e| format!("{e:#}"))
+}
+
+/// Everything the stats page shows, for one profile and range.
+#[tauri::command]
+async fn statsfm_overview(user: String, range: String) -> Result<statsfm::Overview, String> {
+    statsfm::overview(&user, &range)
         .await
         .map_err(|e| format!("{e:#}"))
 }
@@ -204,7 +219,9 @@ fn main() {
             connected,
             check_update,
             apply_update,
-            spicetify_themes
+            spicetify_themes,
+            statsfm_search,
+            statsfm_overview
         ])
         .run(tauri::generate_context!())
         .expect("failed to start the app window");

@@ -21,7 +21,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; img-src 'self' https://i.scdn.co https://*.scdn.co https://*.spotifycdn.com data:; style-src 'self' 'unsafe-inline'; script-src 'self'"
+      "csp": "default-src 'self'; img-src 'self' https://i.scdn.co https://*.scdn.co https://*.spotifycdn.com https://cdn.stats.fm https://*.mzstatic.com data:; style-src 'self' 'unsafe-inline'; script-src 'self'"
     }
   },
   "bundle": {

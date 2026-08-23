@@ -36,6 +36,9 @@ const FETCH_AT_ONCE: usize = 8;
 pub struct Theme {
     pub name: String,
     pub schemes: Vec<Scheme>,
+    /// Installed on this machine rather than read from the repository.
+    #[serde(default)]
+    pub local: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -157,7 +160,59 @@ async fn fetch_theme(client: &reqwest::Client, name: &str) -> Option<Theme> {
     Some(Theme {
         name: name.to_string(),
         schemes,
+        local: false,
     })
+}
+
+/// Themes belonging to a Spicetify install on this machine.
+///
+/// Spicetify keeps them under its config directory, one folder per theme,
+/// exactly as the repository does — so the same parser reads both. Nothing
+/// here requires Spicetify: with no install these directories do not exist
+/// and the catalogue is simply the published one.
+fn local_themes() -> Vec<Theme> {
+    let roots = ["APPDATA", "LOCALAPPDATA", "USERPROFILE"];
+    let mut themes = Vec::new();
+    let mut seen: Vec<String> = Vec::new();
+
+    for root in roots {
+        let Ok(base) = std::env::var(root) else {
+            continue;
+        };
+        // `.spicetify` is where newer versions keep the config; older ones
+        // use a `spicetify` folder under AppData.
+        for dir in ["spicetify/Themes", ".spicetify/Themes"] {
+            let Ok(entries) = std::fs::read_dir(PathBuf::from(&base).join(dir)) else {
+                continue;
+            };
+
+            for entry in entries.flatten() {
+                let name = entry.file_name().to_string_lossy().to_string();
+                if seen.contains(&name) {
+                    continue;
+                }
+
+                let Ok(text) = std::fs::read_to_string(entry.path().join("color.ini")) else {
+                    continue;
+                };
+                let schemes = parse_color_ini(&text);
+                if schemes.is_empty() {
+                    continue;
+                }
+
+                debug!("local theme: {name}");
+                seen.push(name.clone());
+                themes.push(Theme {
+                    name,
+                    schemes,
+                    local: true,
+                });
+            }
+        }
+    }
+
+    themes.sort_by_key(|t| t.name.to_lowercase());
+    themes
 }
 
 fn read_cache(dir: &Path) -> Option<Vec<Theme>> {
@@ -180,10 +235,21 @@ fn write_cache(dir: &Path, themes: &[Theme]) {
 /// gallery instant and working with no network at all — the colours never go
 /// stale in any way that matters.
 pub async fn catalogue(cache_dir: PathBuf, refresh: bool) -> Result<Vec<Theme>> {
+    // Installed themes are read every time. They are local files that cost
+    // nothing to look at, and a theme someone just installed should appear
+    // without having to refresh a catalogue it is not part of.
+    let local = local_themes();
+    let with_local = |mut themes: Vec<Theme>| {
+        themes.retain(|t| !local.iter().any(|l| l.name == t.name));
+        let mut all = local.clone();
+        all.extend(themes);
+        all
+    };
+
     if !refresh {
         if let Some(cached) = read_cache(&cache_dir) {
             debug!("theme catalogue: {} themes from cache", cached.len());
-            return Ok(cached);
+            return Ok(with_local(cached));
         }
     }
 
@@ -192,9 +258,15 @@ pub async fn catalogue(cache_dir: PathBuf, refresh: bool) -> Result<Vec<Theme>> 
         Ok(names) => names,
         Err(e) => {
             // Falling back to a stale cache beats an empty gallery.
-            return read_cache(&cache_dir)
-                .ok_or(e)
-                .inspect(|_| warn!("using the cached catalogue: the fetch failed"));
+            return match read_cache(&cache_dir) {
+                Some(cached) => {
+                    warn!("using the cached catalogue: the fetch failed");
+                    Ok(with_local(cached))
+                }
+                // Installed themes alone still make a catalogue worth showing.
+                None if !local.is_empty() => Ok(local),
+                None => Err(e),
+            };
         }
     };
 
@@ -216,12 +288,18 @@ pub async fn catalogue(cache_dir: PathBuf, refresh: bool) -> Result<Vec<Theme>> 
     }
 
     if themes.is_empty() {
-        return read_cache(&cache_dir).ok_or_else(|| anyhow!("no themes could be read"));
+        return match read_cache(&cache_dir) {
+            Some(cached) => Ok(with_local(cached)),
+            None if !local.is_empty() => Ok(local),
+            None => Err(anyhow!("no themes could be read")),
+        };
     }
 
     debug!("theme catalogue: {} themes fetched", themes.len());
+    // Only the fetched half is cached: the local half is read from disk
+    // anyway, and caching it would resurrect themes after an uninstall.
     write_cache(&cache_dir, &themes);
-    Ok(themes)
+    Ok(with_local(themes))
 }
 
 #[cfg(test)]

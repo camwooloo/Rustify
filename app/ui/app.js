@@ -160,6 +160,7 @@ document.querySelectorAll("[data-nav]").forEach((btn) => {
 $("#btn-menu").onclick = () => navigate("settings");
 $("#btn-home").onclick = () => navigate("home");
 $("#btn-browse").onclick = () => navigate("browse");
+$("#btn-stats").onclick = () => navigate("stats");
 
 $("#btn-account").onclick = () =>
   toast(
@@ -245,6 +246,8 @@ async function render() {
       return renderSettings(content);
     case "browse":
       return renderBrowse(content);
+    case "stats":
+      return renderStats(content);
     default:
       content.innerHTML = "";
   }
@@ -556,6 +559,15 @@ function highlightLyrics() {
 /** Newest first. The top entry is what the bell and the post-update note
  *  show, and the only one expanded by default in Settings. */
 const CHANGELOG = [
+  {
+    v: "0.6.0",
+    d: "23 Aug 2026",
+    notes: [
+      "Listening stats, from the chart icon in the top bar: connect a stats.fm profile to see hours listened, top tracks, artists and albums over four weeks, six months or all time, and everything you last played",
+      "Every row plays: a top track starts it, an artist or album opens its page here",
+      "Themes installed by Spicetify itself now appear in the gallery beside the ones from the repository, marked as installed",
+    ],
+  },
   {
     v: "0.5.0",
     d: "23 Aug 2026",
@@ -1058,7 +1070,9 @@ async function renderThemes(grid, refresh) {
 
   const card = (theme, isDefault) => `
     <div class="theme-card">
-      <div class="theme-name">${esc(theme.name)}${isDefault ? " <span>built in</span>" : ""}</div>
+      <div class="theme-name">${esc(theme.name)}${
+        isDefault ? " <span>built in</span>" : theme.local ? " <span>installed</span>" : ""
+      }</div>
       <div class="scheme-list">
         ${theme.schemes
           .map((sc) => {
@@ -1107,6 +1121,200 @@ function applyZoom(percent) {
 }
 
 applyZoom(Number(localStorage.getItem("rustify.zoom") || 100));
+
+/* ------------------------------------------------------------ stats */
+
+/* stats.fm keeps years of listening history for a Spotify account and answers
+ * for it publicly. A profile name is all it takes, which is why this asks for
+ * one rather than for a login: Rustify never sees a stats.fm credential.
+ *
+ * Everything here carries the Spotify id stats.fm returns, so a chart is
+ * something to play from rather than only to read. */
+
+const STATSFM_KEY = "rustify.statsfm";
+const RANGES = [
+  ["weeks", "Last 4 weeks"],
+  ["months", "Last 6 months"],
+  ["lifetime", "All time"],
+];
+
+let statsRange = "weeks";
+
+const statsfmUser = () => localStorage.getItem(STATSFM_KEY) || "";
+
+/** Ask for a profile name, with a search so nobody needs to know their id. */
+function renderStatsConnect(content, note) {
+  content.innerHTML = `
+    <h1 class="greeting">Listening stats</h1>
+    <div class="center-note stats-connect">
+      <h2>Connect stats.fm</h2>
+      <p>stats.fm keeps the full history of what you have played on Spotify.
+         Enter your profile name to see it here — nothing is signed in to, and
+         only what your profile already shows publicly is read.</p>
+      ${note ? `<p class="stats-warn">${esc(note)}</p>` : ""}
+      <div class="jam-input">
+        <input id="statsfm-name" placeholder="stats.fm profile name" autocomplete="off" />
+        <button class="pill accent" id="statsfm-go">Connect</button>
+      </div>
+      <div id="statsfm-results" class="stats-results"></div>
+      <button class="pill" id="statsfm-site">Open stats.fm</button>
+    </div>`;
+
+  const input = content.querySelector("#statsfm-name");
+  const results = content.querySelector("#statsfm-results");
+
+  const connect = (name) => {
+    if (!name) return;
+    localStorage.setItem(STATSFM_KEY, name);
+    renderStats(content);
+  };
+
+  content.querySelector("#statsfm-go").onclick = () => connect(input.value.trim());
+  input.onkeydown = (e) => {
+    if (e.key === "Enter") connect(input.value.trim());
+  };
+
+  // Typing searches, so a display name is enough to find the profile.
+  let timer = null;
+  input.oninput = () => {
+    clearTimeout(timer);
+    const query = input.value.trim();
+    if (query.length < 2) {
+      results.innerHTML = "";
+      return;
+    }
+    timer = setTimeout(async () => {
+      let found = [];
+      try {
+        found = await invoke("statsfm_search", { query });
+      } catch {
+        return;
+      }
+      results.innerHTML = found
+        .map(
+          (u) => `
+          <button class="device-row" data-id="${esc(u.id)}">
+            ${u.image ? `<img src="${esc(u.image)}" alt="" />` : `<span class="thumb"></span>`}
+            <span class="meta">
+              <span class="title">${esc(u.name)}</span>
+              <span class="sub">${esc(u.id)}</span>
+            </span>
+          </button>`
+        )
+        .join("");
+      results.querySelectorAll("[data-id]").forEach((b) => {
+        b.onclick = () => connect(b.dataset.id);
+      });
+    }, 300);
+  };
+
+  content.querySelector("#statsfm-site").onclick = () =>
+    call({ cmd: "openExternal", url: "https://stats.fm" });
+}
+
+/** One chart row: rank, artwork, name, and what it was played. */
+function statsRow(entry, index) {
+  const plays = entry.streams
+    ? `${entry.streams.toLocaleString()} play${entry.streams === 1 ? "" : "s"}`
+    : "";
+  const mins = entry.minutes ? `${entry.minutes.toLocaleString()} min` : "";
+
+  return `
+    <button class="stats-row${entry.uri ? "" : " noplay"}" data-uri="${esc(entry.uri || "")}">
+      <span class="rank">${index + 1}</span>
+      ${entry.image ? `<img src="${esc(entry.image)}" alt="" />` : `<span class="thumb"></span>`}
+      <span class="meta">
+        <span class="title">${esc(entry.name)}</span>
+        <span class="sub">${esc(entry.sub)}</span>
+      </span>
+      <span class="count">${esc([plays, mins].filter(Boolean).join(" · "))}</span>
+    </button>`;
+}
+
+async function renderStats(content) {
+  const user = statsfmUser();
+  if (!user) return renderStatsConnect(content);
+
+  content.innerHTML = `<h1 class="greeting">Listening stats</h1>
+    <p class="set-note">Reading ${esc(user)} on stats.fm…</p>`;
+
+  let data;
+  try {
+    data = await invoke("statsfm_overview", { user, range: statsRange });
+  } catch (e) {
+    return renderStatsConnect(content, `Could not read that profile: ${String(e)}`);
+  }
+
+  const section = (title, entries, kind) =>
+    entries.length
+      ? `<div class="stats-block">
+           <h2 class="section-title">${title}</h2>
+           <div class="stats-list">${entries.map(statsRow).join("")}</div>
+         </div>`
+      : data.private.includes(kind)
+        ? `<div class="stats-block">
+             <h2 class="section-title">${title}</h2>
+             <p class="set-note">This profile keeps ${esc(kind)} private on stats.fm.</p>
+           </div>`
+        : "";
+
+  const hours = Math.round(data.minutes / 60).toLocaleString();
+
+  content.innerHTML = `
+    <div class="stats-head">
+      ${data.account.image ? `<img src="${esc(data.account.image)}" alt="" />` : `<span class="thumb"></span>`}
+      <div class="meta">
+        <span class="kind">STATS.FM</span>
+        <h1>${esc(data.account.name)}</h1>
+        <span class="sub">${esc(data.account.id)}</span>
+      </div>
+      <button class="pill" id="stats-disconnect">Use another profile</button>
+    </div>
+
+    <div class="lib-filters stats-ranges">
+      ${RANGES.map(
+        ([key, label]) =>
+          `<button class="chip${key === statsRange ? " active" : ""}" data-range="${key}">${label}</button>`
+      ).join("")}
+    </div>
+
+    <div class="stats-figures">
+      <div class="figure"><b>${hours}</b><span>hours listened</span></div>
+      <div class="figure"><b>${data.minutes.toLocaleString()}</b><span>minutes</span></div>
+      <div class="figure"><b>${data.streams.toLocaleString()}</b><span>streams</span></div>
+    </div>
+
+    ${section("Top tracks", data.tracks, "tracks")}
+    ${section("Top artists", data.artists, "artists")}
+    ${section("Top albums", data.albums, "albums")}
+    ${section("Recently played", data.recent, "recent")}`;
+
+  content.querySelectorAll("[data-range]").forEach((b) => {
+    b.onclick = () => {
+      statsRange = b.dataset.range;
+      renderStats(content);
+    };
+  });
+
+  content.querySelector("#stats-disconnect").onclick = () => {
+    localStorage.removeItem(STATSFM_KEY);
+    renderStats(content);
+  };
+
+  // A row opens what it points at: artists and albums have pages of their
+  // own here, and a track is simply played.
+  content.querySelectorAll(".stats-row[data-uri]").forEach((b) => {
+    const uri = b.dataset.uri;
+    if (!uri) return;
+    b.onclick = () => {
+      const [, kind, id] = uri.split(":");
+      if (kind === "artist") return navigate("artist", id);
+      if (kind === "album") return navigate("album", id);
+      call({ cmd: "loadTracks", uris: [uri], startPlaying: true });
+      toast("Playing");
+    };
+  });
+}
 
 /* ---------------------------------------------------------- theming */
 

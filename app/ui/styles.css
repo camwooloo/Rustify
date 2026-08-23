@@ -1757,3 +1757,130 @@ select option:hover { background: rgba(var(--accent-rgb), 0.28); }
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* ---------------------------------------------------------- stats */
+
+.stats-connect { max-width: 520px; margin: 0 auto; }
+.stats-connect .jam-input { margin: 16px 0 8px; }
+
+.stats-connect input {
+  flex: 1;
+  height: 40px;
+  padding: 0 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--stroke);
+  background: var(--field);
+  color: var(--text);
+  outline: none;
+}
+
+.stats-warn { color: var(--warn); font-size: 12.5px; margin-top: 8px; }
+
+.stats-results {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 14px;
+  text-align: left;
+}
+
+.stats-head {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 22px 0 18px;
+}
+
+.stats-head img,
+.stats-head .thumb {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--hover);
+  flex: 0 0 auto;
+}
+
+.stats-head .meta { flex: 1; min-width: 0; }
+.stats-head .kind {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.09em;
+  color: var(--text-mute);
+}
+.stats-head h1 { font-size: 40px; font-weight: 900; letter-spacing: -0.03em; margin: 4px 0; }
+.stats-head .sub { color: var(--text-mute); font-size: 12.5px; }
+
+.stats-ranges { padding: 0 0 16px; }
+
+.stats-figures {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+  margin-bottom: 26px;
+}
+
+.figure {
+  background: var(--card);
+  border-radius: var(--radius);
+  padding: 18px;
+}
+
+.figure b {
+  display: block;
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.figure span { color: var(--text-mute); font-size: 12.5px; }
+
+.stats-block { margin-bottom: 26px; }
+.stats-list { display: flex; flex-direction: column; gap: 2px; }
+
+.stats-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 7px 10px;
+  border-radius: var(--radius-sm);
+  text-align: left;
+  transition: 0.14s var(--ease);
+}
+
+.stats-row:hover { background: var(--row-hover); }
+/* Nothing to play: stats.fm knows the track, Spotify has no id for it. */
+.stats-row.noplay { cursor: default; }
+.stats-row.noplay:hover { background: none; }
+
+.stats-row .rank {
+  width: 20px;
+  text-align: right;
+  color: var(--text-mute);
+  font-variant-numeric: tabular-nums;
+  flex: 0 0 auto;
+}
+
+.stats-row img,
+.stats-row .thumb {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-sm);
+  object-fit: cover;
+  background: var(--hover);
+  flex: 0 0 auto;
+}
+
+.stats-row .meta { flex: 1; min-width: 0; }
+.stats-row .title { display: block; font-weight: 600; }
+.stats-row .sub { display: block; color: var(--text-mute); font-size: 12px; }
+.stats-row .title,
+.stats-row .sub { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.stats-row .count {
+  color: var(--text-mute);
+  font-size: 12px;
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
