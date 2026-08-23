@@ -588,6 +588,15 @@ function highlightLyrics() {
  *  show, and the only one expanded by default in Settings. */
 const CHANGELOG = [
   {
+    v: "0.9.0",
+    d: "24 Aug 2026",
+    notes: [
+      "Rustify runs on macOS and Linux now: every release carries three downloads, one per platform",
+      "Search results filter by Songs, Artists, Albums or Playlists, and the filter stays put while you refine the search",
+      "On macOS and Linux the update button opens the download rather than installing itself, since only the Windows installer can do that unattended",
+    ],
+  },
+  {
     v: "0.8.0",
     d: "23 Aug 2026",
     notes: [
