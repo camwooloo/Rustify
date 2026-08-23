@@ -585,6 +585,13 @@ function highlightLyrics() {
  *  show, and the only one expanded by default in Settings. */
 const CHANGELOG = [
   {
+    v: "0.6.2",
+    d: "23 Aug 2026",
+    notes: [
+      "Playing a song from Liked Songs carries on through the rest of the list instead of stopping after it. Search results and an artist's top tracks were doing the same thing and are fixed with it",
+    ],
+  },
+  {
     v: "0.6.1",
     d: "23 Aug 2026",
     notes: [
@@ -1874,7 +1881,16 @@ function wireTracks(root, tracks, contextUri = null) {
       if (contextUri) {
         call({ cmd: "loadContext", uri: contextUri, index: i, startPlaying: true });
       } else {
-        call({ cmd: "loadTracks", uris: [tracks[i].uri], startPlaying: true });
+        // Liked Songs, search results and an artist's top tracks have no
+        // context to hand over, so the list itself is the context: send all
+        // of it and say where to start. Sending the one clicked track left
+        // the player with nothing to play next.
+        call({
+          cmd: "loadTracks",
+          uris: tracks.map((t) => t.uri),
+          index: i,
+          startPlaying: true,
+        });
       }
     };
   });

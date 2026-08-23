@@ -131,6 +131,9 @@ async fn run() -> Result<()> {
                     Command::LoadTracks {
                         uris: vec![uri.to_string()],
                         start_playing: true,
+                        // One track named on the command line is the whole
+                        // list, so there is nowhere else to start.
+                        index: None,
                     }
                 } else {
                     Command::LoadContext {

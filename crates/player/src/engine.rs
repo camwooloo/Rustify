@@ -242,9 +242,21 @@ impl Engine {
     }
 
     /// Play a bare list of track URIs.
-    pub fn load_tracks(&self, uris: Vec<String>, start_playing: bool) -> Result<()> {
+    /// Play a list of tracks, optionally starting partway down it.
+    ///
+    /// Without `index` the whole list is loaded but playback starts at the
+    /// first track, so clicking the tenth song in a list would play the
+    /// first. Passing only the clicked track instead is what made a song
+    /// play alone and stop: the queue held nothing to go on to.
+    pub fn load_tracks(
+        &self,
+        uris: Vec<String>,
+        start_playing: bool,
+        index: Option<u32>,
+    ) -> Result<()> {
         let options = LoadRequestOptions {
             start_playing,
+            playing_track: index.map(PlayingTrack::Index),
             ..Default::default()
         };
         self.spirc

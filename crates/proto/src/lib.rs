@@ -94,6 +94,10 @@ pub enum Command {
         uris: Vec<String>,
         #[serde(default = "default_true")]
         start_playing: bool,
+        /// Where in `uris` to start. Without it the list plays from the top,
+        /// which is wrong for a list someone clicked halfway down.
+        #[serde(default)]
+        index: Option<u32>,
     },
 
     // -- web api --------------------------------------------------------

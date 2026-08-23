@@ -595,10 +595,13 @@ impl Daemon {
             LoadTracks {
                 uris,
                 start_playing,
+                index,
             } => {
                 let engine = self.engine().await?;
                 let _ = engine.activate();
-                engine.load_tracks(uris, start_playing).map(|_| Payload::Ok)
+                engine
+                    .load_tracks(uris, start_playing, index)
+                    .map(|_| Payload::Ok)
             }
 
             // -- web api ---------------------------------------------------
