@@ -557,6 +557,13 @@ function highlightLyrics() {
  *  show, and the only one expanded by default in Settings. */
 const CHANGELOG = [
   {
+    v: "0.4.1",
+    d: "23 Aug 2026",
+    notes: [
+      "Fixed the second update in one sitting failing: each download now keeps its own name, since the installer that ran before it holds its file open for as long as Rustify stays open",
+    ],
+  },
+  {
     v: "0.4.0",
     d: "23 Aug 2026",
     notes: [

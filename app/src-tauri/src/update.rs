@@ -111,6 +111,19 @@ pub async fn check() -> Option<UpdateInfo> {
     })
 }
 
+/// Is this a bare filename we are willing to write into the temp directory?
+///
+/// The name comes from a URL, so it is checked rather than trusted: letters,
+/// digits, dots, dashes and underscores only, which leaves no way to point at
+/// a directory or at anything but an installer.
+fn is_plain_installer_name(name: &str) -> bool {
+    name.ends_with(".exe")
+        && name.len() < 100
+        && name
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '-' | '_'))
+}
+
 /// Silent install: no window, no clicks, close Rustify, start it again.
 ///
 /// `/S` is NSIS's own silent switch, and Tauri's installer reads the other
@@ -174,7 +187,31 @@ pub async fn apply(url: &str, on_progress: impl Fn(u8)) -> Result<()> {
         return Err(anyhow!("the download ended early"));
     }
 
-    let path = std::env::temp_dir().join("Rustify-update-setup.exe");
+    // Every download gets the release's own filename rather than one fixed
+    // name. A silent installer stays alive for as long as the Rustify it
+    // relaunched, and Windows will not let anything overwrite the image of a
+    // running process — so a second update in one sitting would otherwise be
+    // refused the moment it tried to write.
+    let dir = std::env::temp_dir();
+    let name = url
+        .rsplit('/')
+        .next()
+        .filter(|n| is_plain_installer_name(n))
+        .unwrap_or("Rustify-update-setup.exe");
+    let path = dir.join(name);
+
+    // Installers left by previous updates are dead weight once their own
+    // install is done. Whatever is still locked simply stays.
+    if let Ok(entries) = std::fs::read_dir(&dir) {
+        for entry in entries.flatten() {
+            let stale = entry.file_name();
+            let stale = stale.to_string_lossy();
+            if stale != name && stale.starts_with("Rustify") && stale.ends_with("setup.exe") {
+                let _ = std::fs::remove_file(entry.path());
+            }
+        }
+    }
+
     std::fs::write(&path, &bytes)
         .with_context(|| format!("writing {}", path.display()))?;
 
@@ -189,7 +226,16 @@ pub async fn apply(url: &str, on_progress: impl Fn(u8)) -> Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use super::is_newer;
+    use super::{is_newer, is_plain_installer_name};
+
+    #[test]
+    fn only_bare_installer_names_are_written_to_temp() {
+        assert!(is_plain_installer_name("Rustify_0.4.1_x64-setup.exe"));
+        assert!(!is_plain_installer_name("notes.txt"));
+        // Nothing that could climb out of the temp directory.
+        assert!(!is_plain_installer_name("../../Windows/System32/evil.exe"));
+        assert!(!is_plain_installer_name("C:/Windows/System32/evil.exe"));
+    }
 
     #[test]
     fn version_comparison_handles_the_v_prefix_and_short_forms() {
