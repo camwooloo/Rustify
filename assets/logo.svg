@@ -1,0 +1,71 @@
+<!-- Rustify's mark: a ringed planet whose ring is a record.
+     The ring passes behind the planet at the top and in front at the bottom,
+     which is what makes it read as Saturn rather than as a circle in a hoop.
+     Two grooves in the ring carry the record half of the idea without
+     needing detail that would vanish at 32px. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <!-- Lit from the upper left, so the planet has a horizon. -->
+    <radialGradient id="planet" cx="36%" cy="30%" r="82%">
+      <stop offset="0%" stop-color="#31465c" />
+      <stop offset="42%" stop-color="#16202c" />
+      <stop offset="100%" stop-color="#070a0f" />
+    </radialGradient>
+
+    <linearGradient id="ring" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3be477" />
+      <stop offset="45%" stop-color="#1ed760" />
+      <stop offset="100%" stop-color="#0a7d3a" />
+    </linearGradient>
+
+    <!-- Light on the side facing the star, falling off before it reaches
+         the far edge, so the planet keeps a dark limb. -->
+    <radialGradient id="lit" cx="28%" cy="24%" r="62%">
+      <stop offset="0%" stop-color="#5ff08e" stop-opacity="0.95" />
+      <stop offset="38%" stop-color="#1ed760" stop-opacity="0.45" />
+      <stop offset="100%" stop-color="#1ed760" stop-opacity="0" />
+    </radialGradient>
+
+    <!-- A hairline where the lit edge meets space: what keeps the planet
+         readable at sixteen pixels on a dark taskbar. -->
+    <linearGradient id="edge" x1="10%" y1="0%" x2="90%" y2="100%">
+      <stop offset="0%" stop-color="#7bf6a6" stop-opacity="0.95" />
+      <stop offset="45%" stop-color="#1ed760" stop-opacity="0.35" />
+      <stop offset="100%" stop-color="#1ed760" stop-opacity="0.06" />
+    </linearGradient>
+
+    <!-- The ring crosses the planet: everything below the planet's middle,
+         in the ring's own tilted frame, is drawn over it. -->
+    <clipPath id="front">
+      <rect x="-40" y="256" width="592" height="336" />
+    </clipPath>
+  </defs>
+
+  <g transform="translate(256 256) scale(1.22) translate(-256 -256) rotate(-24 256 256)">
+    <!-- Behind the planet -->
+    <ellipse cx="256" cy="256" rx="190" ry="62" fill="none"
+             stroke="url(#ring)" stroke-width="30" opacity="0.55" />
+
+    <circle cx="256" cy="256" r="140" fill="url(#planet)" />
+    <circle cx="256" cy="256" r="140" fill="url(#lit)" />
+    <circle cx="256" cy="256" r="138" fill="none"
+            stroke="url(#edge)" stroke-width="5" />
+
+    <!-- In front of it -->
+    <g clip-path="url(#front)">
+      <ellipse cx="256" cy="256" rx="190" ry="62" fill="none"
+               stroke="url(#ring)" stroke-width="30" />
+      <ellipse cx="256" cy="256" rx="190" ry="62" fill="none"
+               stroke="#071009" stroke-width="2" opacity="0.55" />
+      <ellipse cx="256" cy="256" rx="181" ry="54" fill="none"
+               stroke="#071009" stroke-width="2" opacity="0.4" />
+    </g>
+  </g>
+
+  <!-- A little sky, kept away from the edges so a circular mask cannot
+       clip a star in half. -->
+  <circle cx="60" cy="74" r="7" fill="#eaf6ef" opacity="0.9" />
+  <circle cx="452" cy="92" r="4.5" fill="#eaf6ef" opacity="0.65" />
+  <circle cx="446" cy="428" r="6" fill="#eaf6ef" opacity="0.75" />
+  <circle cx="74" cy="440" r="3.5" fill="#eaf6ef" opacity="0.5" />
+</svg>

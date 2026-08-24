@@ -6,6 +6,7 @@
 //! exists. Close the window before a game and playback continues from here.
 
 mod config;
+mod presence;
 mod server;
 mod state;
 
@@ -134,6 +135,7 @@ async fn main() -> Result<()> {
     }
 
     tokio::spawn(tick_position(daemon.clone()));
+    tokio::spawn(drive_presence(daemon.clone()));
     tokio::spawn(poll_remote(daemon.clone()));
     tokio::spawn(watch_session(daemon.clone()));
     tokio::spawn(watch_saved(daemon.clone()));
@@ -152,6 +154,57 @@ async fn main() -> Result<()> {
 /// when the window closed. librespot's own position events resync any drift.
 /// Only the broadcast is skipped when there are no receivers, which is where
 /// the actual cost is.
+/// Keep Discord's status in step with what is playing.
+///
+/// Driven by the event stream rather than a timer, so it costs nothing while
+/// nothing changes. The setting is re-read on a slow cadence instead of being
+/// threaded through the daemon: turning it off should take effect promptly,
+/// but not so promptly that it justifies plumbing.
+async fn drive_presence(daemon: std::sync::Arc<Daemon>) {
+    use std::time::{Duration, Instant};
+
+    let mut events = daemon.subscribe();
+    let mut presence = presence::Presence::new();
+
+    let mut enabled = config::load().settings.discord_presence;
+    let mut checked = Instant::now();
+
+    loop {
+        let event = match events.recv().await {
+            Ok(event) => event,
+            // Lagging only means status updates were missed, and the next
+            // event carries the current truth.
+            Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => continue,
+            Err(_) => break,
+        };
+
+        if checked.elapsed() > Duration::from_secs(3) {
+            let now_enabled = config::load().settings.discord_presence;
+            if now_enabled != enabled {
+                enabled = now_enabled;
+                if !enabled {
+                    presence.shutdown();
+                }
+            }
+            checked = Instant::now();
+        }
+
+        if !enabled {
+            continue;
+        }
+
+        match event {
+            Event::State(state) => presence.update(&state),
+            // A pause arrives as a position tick, and a status that still
+            // claims to be listening through a pause is a small lie.
+            Event::Position { playing: false, .. } => presence.clear(),
+            _ => {}
+        }
+    }
+
+    presence.shutdown();
+}
+
 async fn tick_position(daemon: std::sync::Arc<Daemon>) {
     let mut interval = tokio::time::interval(TICK);
     interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);

@@ -184,7 +184,7 @@ $("#btn-menu").onclick = () => navigate("settings");
 $("#btn-home").onclick = () => navigate("home");
 $("#btn-browse").onclick = () => navigate("browse");
 $("#btn-stats").onclick = () => navigate("stats");
-$("#btn-market").onclick = () => navigate("market");
+$("#btn-hub").onclick = () => navigate("hub", "extensions");
 
 $("#btn-account").onclick = () =>
   toast(
@@ -272,10 +272,8 @@ async function render() {
       return renderBrowse(content);
     case "stats":
       return renderStats(content);
-    case "themes":
-      return renderThemesPage(content);
-    case "market":
-      return renderMarket(content, false);
+    case "hub":
+      return renderHub(content, view.param);
     default:
       content.innerHTML = "";
   }
@@ -587,6 +585,17 @@ function highlightLyrics() {
 /** Newest first. The top entry is what the bell and the post-update note
  *  show, and the only one expanded by default in Settings. */
 const CHANGELOG = [
+  {
+    v: "1.0.0",
+    d: "24 Aug 2026",
+    notes: [
+      "Extensions: parts of Rustify that ship switched off, on their own page in the top left. Discord Rich Presence shows what you are playing with a link to the project, and a five-band equaliser sits between the decoder and your speakers — Spotify's own desktop client has neither",
+      "Themes moved there too, out of the settings list",
+      "The Spicetify marketplace browser is gone. Extensions and apps there run in the official client, not here, so listing them was offering something this app cannot give",
+      "Playlists are properly editable: rename, describe, delete, and drag rows to reorder them",
+      "A new logo, and a README worth reading",
+    ],
+  },
   {
     v: "0.9.0",
     d: "24 Aug 2026",
@@ -1038,9 +1047,9 @@ async function renderSettings(content) {
 
       <div class="set-group">Appearance</div>
       ${setRow(
-        "Theme",
-        "Spicetify colour schemes, and any theme installed on this computer.",
-        `<button class="pill" id="set-themes">Browse themes</button>`
+        "Themes and extensions",
+        "Colour schemes, Discord Rich Presence and the equaliser live together on their own page.",
+        `<button class="pill" id="set-themes">Open</button>`
       )}
 
       <div class="set-group">Storage</div>
@@ -1112,7 +1121,7 @@ async function renderSettings(content) {
     applyZoom(Number(e.target.value));
   };
 
-  content.querySelector("#set-themes").onclick = () => navigate("themes");
+  content.querySelector("#set-themes").onclick = () => navigate("hub", "themes");
 
   content.querySelector("#set-site").onclick = () =>
     call({ cmd: "openExternal", url: "https://camwooloo.com" });
@@ -1126,30 +1135,6 @@ async function renderSettings(content) {
 /** The catalogue, once per run: it is a network call and it never changes
  * under us mid-session. */
 let themeCatalogue = null;
-
-/** The themes page: the gallery had outgrown a row in the settings list. */
-async function renderThemesPage(content) {
-  content.innerHTML = `
-    <h1 class="greeting">Appearance</h1>
-    <div class="theme-bar">
-      <div class="label">
-        <p>Spicetify colour schemes, read from the community theme repository
-           and from any Spicetify install on this computer. Only the colours
-           carry over — a theme's own CSS is written against the official
-           client's markup, which Rustify does not share.</p>
-      </div>
-      <div class="control">
-        <button class="pill" id="theme-market">Marketplace</button>
-        <button class="pill" id="theme-refresh">Refresh</button>
-      </div>
-    </div>
-    <div class="theme-grid" id="theme-grid"></div>`;
-
-  const grid = content.querySelector("#theme-grid");
-  renderThemes(grid, false);
-  content.querySelector("#theme-refresh").onclick = () => renderThemes(grid, true);
-  content.querySelector("#theme-market").onclick = () => navigate("market");
-}
 
 /** Draw the theme gallery into a grid element. */
 async function renderThemes(grid, refresh) {
@@ -1444,263 +1429,209 @@ async function renderStats(content) {
   });
 }
 
-/* ------------------------------------------------------ marketplace */
+/* -------------------------------------------------------------- hub */
 
-/* The same catalogue Spicetify's Marketplace lists, read from the same
- * places: GitHub topics for extensions, themes and apps, and the snippet
- * file in the Marketplace's own repository.
+/* Extensions and themes, in one place reached from the top bar.
  *
- * What can be used here differs by kind, and the page says so rather than
- * offering buttons that quietly do nothing. A theme's colours apply to
- * Rustify, because its variables describe the same surfaces. The CSS half of
- * a theme, and every snippet, extension and app, is written against the
- * official client's markup and APIs — so those are listed, described and
- * linked, and left to run where they belong. */
+ * Extensions here are parts of Rustify that ship switched off, not code
+ * fetched from strangers. That is the whole difference: everything on this
+ * page was written for this app, so enabling one cannot hand an account to
+ * somebody's repository. */
 
-const MARKET_TABS = [
-  ["theme", "Themes"],
-  ["extension", "Extensions"],
-  ["snippet", "Snippets"],
-  ["app", "Apps"],
-  ["installed", "Installed"],
+const HUB_TABS = [
+  ["extensions", "Extensions"],
+  ["themes", "Themes"],
 ];
 
-const MARKET_SORTS = [
-  ["stars", "Stars"],
-  ["name", "Name"],
-  ["updated", "Recently updated"],
+/* Presets are the ones people actually reach for, in the order a list of
+ * them is usually read. Values are per band: 60 Hz, 230 Hz, 910 Hz, 3.6 kHz,
+ * 14 kHz. */
+const EQ_PRESETS = [
+  ["Flat", [0, 0, 0, 0, 0]],
+  ["Bass boost", [7, 4, 0, 0, 0]],
+  ["Bass cut", [-7, -3, 0, 0, 1]],
+  ["Vocal", [-2, 0, 4, 3, 0]],
+  ["Treble boost", [0, 0, 0, 4, 7]],
+  ["Late night", [4, 1, 0, 1, 3]],
 ];
 
-let marketTab = "theme";
-let marketQuery = "";
-let marketSort = "stars";
-const marketCache = {};
+const EQ_BANDS = ["60 Hz", "230 Hz", "910 Hz", "3.6 kHz", "14 kHz"];
 
-/** What a kind can do inside Rustify, said once at the top of each tab. */
-const MARKET_NOTE = {
-  theme:
-    "Colours apply to Rustify. A theme's own CSS changes the official client's layout, which Rustify does not share, so that half stays in Spotify.",
-  extension:
-    "Extensions run inside the official client, calling Spotify's own APIs. They are listed here to browse — installing them is Spicetify's job, not Rustify's.",
-  snippet:
-    "Snippets are small pieces of CSS aimed at the official client's markup. Copy one for use in Spicetify.",
-  app: "Apps are whole pages added to the official client. Rustify cannot host them; browse and open them on GitHub.",
-  installed: "Themes Spicetify has installed on this computer. These apply to Rustify too.",
-};
+let hubTab = "extensions";
 
-async function marketItems(kind, refresh) {
-  if (kind === "installed") {
-    const themes = await invoke("spicetify_themes", { refresh: false });
-    return themes
-      .filter((t) => t.local)
-      .map((t) => ({
-        kind: "installed",
-        name: t.name,
-        description: `${t.schemes.length} colour scheme${t.schemes.length === 1 ? "" : "s"}`,
-        authors: [],
-        stars: 0,
-        preview: null,
-        repo: null,
-        tags: ["installed"],
-        schemes: t.schemes,
-      }));
+/** Read the daemon's settings, or null when it cannot be reached. */
+async function hubSettings() {
+  try {
+    return (await call({ cmd: "getSettings" })).settings;
+  } catch {
+    return null;
   }
-
-  if (!refresh && marketCache[kind]) return marketCache[kind];
-  const items = await invoke("marketplace", { kind, refresh: !!refresh });
-  marketCache[kind] = items;
-  return items;
 }
 
-/** Apply one scheme and remember it, as the theme gallery does. */
-function useScheme(themeName, scheme) {
-  applyTheme({ theme: themeName, scheme: scheme.name, colors: scheme.colors });
-  toast(`${themeName} · ${scheme.name}`);
+/** Send settings back, leaving everything not named here alone. */
+async function saveSettings(settings, changes) {
+  const next = { ...settings, ...changes };
+  await call({ cmd: "setSettings", ...next });
+  return next;
 }
 
-/** Offer a theme's schemes inside its own card. */
-function showSchemes(card, item, schemes) {
-  const list = card.querySelector(".mk-schemes");
-  if (schemes.length === 1) return useScheme(item.name, schemes[0]);
-
-  list.innerHTML = schemes
-    .map(
-      (sc, i) => `
-      <button class="scheme" data-scheme="${i}">
-        <span class="swatches">
-          ${["main", "card", "button", "text", "subtext"]
-            .map((k) => `<i style="background:#${esc(sc.colors[k] || "888888")}"></i>`)
-            .join("")}
-        </span>
-        <span class="scheme-name">${esc(sc.name)}</span>
-      </button>`
-    )
-    .join("");
-
-  list.querySelectorAll("[data-scheme]").forEach((b) => {
-    b.onclick = () => {
-      useScheme(item.name, schemes[Number(b.dataset.scheme)]);
-      list.querySelectorAll(".scheme").forEach((o) => o.classList.remove("on"));
-      b.classList.add("on");
-    };
-  });
+function eqSliders(gains) {
+  return EQ_BANDS.map(
+    (label, i) => `
+    <label class="eq-band">
+      <input type="range" class="eq-slider" data-band="${i}"
+             min="-12" max="12" step="1" value="${gains[i] ?? 0}" />
+      <span class="eq-db" data-db="${i}">${(gains[i] ?? 0) > 0 ? "+" : ""}${gains[i] ?? 0}</span>
+      <span class="eq-hz">${label}</span>
+    </label>`
+  ).join("");
 }
 
-function marketCard(item, index) {
-  const stars = item.stars ? `<span class="mk-stars">★ ${item.stars.toLocaleString()}</span>` : "";
-  const by = item.authors?.length ? esc(item.authors.join(", ")) : "";
-  const canColour = item.kind === "installed" || (item.kind === "theme" && item.schemesPath);
+async function renderHub(content, tab) {
+  hubTab = tab || hubTab;
 
-  return `
-    <div class="mk-card" data-card="${index}">
-      <div class="mk-shot">
-        ${item.preview ? `<img src="${esc(item.preview)}" alt="" loading="lazy" />` : `<div class="thumb"></div>`}
-      </div>
-      <div class="mk-head">
-        <span class="mk-name">${esc(item.name)}</span>
-        ${stars}
-      </div>
-      ${by ? `<div class="mk-by">${by}</div>` : ""}
-      ${item.description ? `<p class="mk-desc">${esc(item.description)}</p>` : ""}
-      <div class="mk-tags">
-        ${(item.tags || [])
-          .map((t) => `<span class="mk-tag${t === "external JS" ? " warn" : ""}">${esc(t)}</span>`)
-          .join("")}
-        ${item.updated ? `<span class="mk-when">${esc(item.updated)}</span>` : ""}
-      </div>
-      <div class="mk-schemes"></div>
-      <div class="mk-actions">
-        ${canColour ? `<button class="pill accent" data-use>Use colours</button>` : ""}
-        ${item.code ? `<button class="pill" data-copy>Copy CSS</button>` : ""}
-        ${item.url ? `<button class="pill" data-open>GitHub</button>` : ""}
-      </div>
-    </div>`;
-}
-
-function marketSorted(items) {
-  const query = marketQuery.trim().toLowerCase();
-  const matches = query
-    ? items.filter((i) =>
-        [i.name, i.description, (i.authors || []).join(" ")]
-          .join(" ")
-          .toLowerCase()
-          .includes(query)
-      )
-    : items.slice();
-
-  if (marketSort === "name") matches.sort((a, b) => a.name.localeCompare(b.name));
-  else if (marketSort === "updated")
-    matches.sort((a, b) => String(b.updated || "").localeCompare(String(a.updated || "")));
-  else matches.sort((a, b) => b.stars - a.stars || a.name.localeCompare(b.name));
-
-  return matches;
-}
-
-async function renderMarket(content, refresh) {
   content.innerHTML = `
-    <div class="mk-top">
-      <h1 class="greeting">Marketplace</h1>
-      <div class="mk-controls">
-        <input id="mk-search" placeholder="Search…" value="${esc(marketQuery)}" autocomplete="off" />
-        <select id="mk-sort">
-          ${MARKET_SORTS.map(
-            ([key, label]) =>
-              `<option value="${key}" ${key === marketSort ? "selected" : ""}>${label}</option>`
-          ).join("")}
-        </select>
-        <button class="pill" id="mk-refresh">Refresh</button>
-      </div>
-    </div>
-    <div class="lib-filters mk-tabs">
-      ${MARKET_TABS.map(
+    <h1 class="greeting">Extensions</h1>
+    <div class="lib-filters hub-tabs">
+      ${HUB_TABS.map(
         ([key, label]) =>
-          `<button class="chip${key === marketTab ? " active" : ""}" data-tab="${key}">${label}</button>`
+          `<button class="chip${key === hubTab ? " active" : ""}" data-hub="${key}">${label}</button>`
       ).join("")}
     </div>
-    <p class="set-note mk-note">${esc(MARKET_NOTE[marketTab])}</p>
-    <div class="mk-grid" id="mk-grid"><p class="set-note">Loading…</p></div>`;
+    <div id="hub-body"><p class="set-note">Loading…</p></div>`;
 
-  const grid = content.querySelector("#mk-grid");
+  content.querySelectorAll("[data-hub]").forEach((b) => {
+    b.onclick = () => renderHub(content, b.dataset.hub);
+  });
 
-  content.querySelectorAll("[data-tab]").forEach((b) => {
-    b.onclick = () => {
-      marketTab = b.dataset.tab;
-      renderMarket(content, false);
+  const body = content.querySelector("#hub-body");
+
+  if (hubTab === "themes") {
+    body.innerHTML = `
+      <p class="set-note hub-note">
+        Colour schemes in Spicetify's format, from any Spicetify install on
+        this computer and from the community collection. Only the colours are
+        read — never anyone's code.
+      </p>
+      <div class="theme-bar">
+        <div class="control"><button class="pill" id="theme-refresh">Refresh</button></div>
+      </div>
+      <div class="theme-grid" id="theme-grid"></div>`;
+
+    const grid = body.querySelector("#theme-grid");
+    renderThemes(grid, false);
+    body.querySelector("#theme-refresh").onclick = () => renderThemes(grid, true);
+    return;
+  }
+
+  const settings = await hubSettings();
+  if (!settings) {
+    body.innerHTML = `<p class="set-note">The player is not reachable, so its extensions cannot be read.</p>`;
+    return;
+  }
+
+  let current = settings;
+  const gains = (current.equaliserGains?.length ? current.equaliserGains : [0, 0, 0, 0, 0]).slice();
+
+  body.innerHTML = `
+    <div class="ext-card">
+      <div class="ext-head">
+        <div>
+          <b>Discord Rich Presence</b>
+          <p>Shows what you are playing on your Discord profile, with a link
+             to the project underneath it. Discord's own Spotify integration
+             only reads the official client, so this is how listening here
+             still shows up.</p>
+        </div>
+        ${toggleHtml("discordPresence", current.discordPresence)}
+      </div>
+    </div>
+
+    <div class="ext-card">
+      <div class="ext-head">
+        <div>
+          <b>Equaliser</b>
+          <p>Five bands, applied between the decoder and your speakers.
+             Changes are heard immediately. Spotify's own desktop client has
+             no equaliser at all.</p>
+        </div>
+        ${toggleHtml("equaliser", current.equaliser)}
+      </div>
+
+      <div class="eq" id="eq-panel" ${current.equaliser ? "" : "data-off"}>
+        <div class="lib-filters eq-presets">
+          ${EQ_PRESETS.map(
+            ([name]) => `<button class="chip" data-preset="${esc(name)}">${esc(name)}</button>`
+          ).join("")}
+        </div>
+        <div class="eq-bands">${eqSliders(gains)}</div>
+      </div>
+    </div>`;
+
+  // Both toggles write straight through: a switch that needs a save button
+  // is a switch people leave in the wrong position.
+  body.querySelectorAll("[data-toggle]").forEach((b) => {
+    b.onclick = async () => {
+      b.classList.toggle("on");
+      const on = b.classList.contains("on");
+      b.setAttribute("aria-checked", on);
+
+      const key = b.dataset.toggle;
+      if (key === "equaliser") {
+        body.querySelector("#eq-panel").toggleAttribute("data-off", !on);
+      }
+
+      try {
+        current = await saveSettings(current, { [key]: on });
+        if (key === "discordPresence") {
+          toast(on ? "Discord will show what you play" : "Discord status off");
+        }
+      } catch {
+        // The daemon reported it; put the switch back where it was.
+        b.classList.toggle("on");
+      }
     };
   });
 
-  content.querySelector("#mk-refresh").onclick = () => renderMarket(content, true);
-
-  content.querySelector("#mk-sort").onchange = (e) => {
-    marketSort = e.target.value;
-    renderMarket(content, false);
+  const pushGains = async () => {
+    try {
+      current = await saveSettings(current, { equaliserGains: gains });
+    } catch {
+      /* reported by the daemon */
+    }
   };
 
-  const search = content.querySelector("#mk-search");
-  let timer = null;
-  search.oninput = () => {
-    clearTimeout(timer);
-    timer = setTimeout(() => {
-      marketQuery = search.value;
-      renderMarket(content, false);
-    }, 250);
-  };
+  body.querySelectorAll(".eq-slider").forEach((slider) => {
+    const band = Number(slider.dataset.band);
+    const readout = body.querySelector(`[data-db="${band}"]`);
 
-  let items;
-  try {
-    items = await marketItems(marketTab, refresh);
-  } catch (e) {
-    grid.innerHTML = `<p class="set-note">Could not read the catalogue: ${esc(String(e))}</p>`;
-    return;
-  }
+    slider.oninput = () => {
+      gains[band] = Number(slider.value);
+      readout.textContent = `${gains[band] > 0 ? "+" : ""}${gains[band]}`;
+    };
+    // Saved when the slider is let go, not on every pixel of the drag.
+    slider.onchange = pushGains;
+  });
 
-  const shown = marketSorted(items);
-  if (!shown.length) {
-    grid.innerHTML = `<p class="set-note">Nothing matches “${esc(marketQuery)}”.</p>`;
-    return;
-  }
+  body.querySelectorAll("[data-preset]").forEach((b) => {
+    b.onclick = () => {
+      const preset = EQ_PRESETS.find(([name]) => name === b.dataset.preset);
+      if (!preset) return;
 
-  grid.innerHTML = shown.map(marketCard).join("");
+      preset[1].forEach((value, i) => {
+        gains[i] = value;
+        const slider = body.querySelector(`.eq-slider[data-band="${i}"]`);
+        const readout = body.querySelector(`[data-db="${i}"]`);
+        if (slider) slider.value = String(value);
+        if (readout) readout.textContent = `${value > 0 ? "+" : ""}${value}`;
+      });
 
-  grid.querySelectorAll("[data-card]").forEach((card) => {
-    const item = shown[Number(card.dataset.card)];
-
-    card.querySelector("[data-open]")?.addEventListener("click", () =>
-      call({ cmd: "openExternal", url: item.url })
-    );
-
-    card.querySelector("[data-copy]")?.addEventListener("click", async () => {
-      await navigator.clipboard.writeText(item.code || "");
-      toast("Snippet copied");
-    });
-
-    card.querySelector("[data-use]")?.addEventListener("click", async (e) => {
-      const button = e.currentTarget;
-      // Installed themes are already read from disk; catalogue ones have
-      // their colours fetched now rather than for every card up front.
-      if (item.schemes) return showSchemes(card, item, item.schemes);
-
-      button.disabled = true;
-      button.textContent = "Reading…";
-      try {
-        const schemes = await invoke("marketplace_schemes", {
-          repo: item.repo,
-          branch: item.branch || "main",
-          path: item.schemesPath,
-        });
-        item.schemes = schemes;
-        showSchemes(card, item, schemes);
-      } catch (err) {
-        toast(`No colours could be read: ${String(err)}`, "error");
-      } finally {
-        button.disabled = false;
-        button.textContent = "Use colours";
-      }
-    });
+      body.querySelectorAll("[data-preset]").forEach((o) => o.classList.remove("active"));
+      b.classList.add("active");
+      pushGains();
+    };
   });
 }
-
-
 
 /** Render a failure the user can act on, instead of an empty screen. */
 function renderError(content, message) {
@@ -2051,8 +1982,9 @@ async function renderSearch(content, query) {
   wireTracks(content, res.tracks || []);
 }
 
-function trackTable(tracks) {
-  const rows = tracks
+/** Just the rows, so a reorder can redraw them without the header. */
+function trackRows(tracks) {
+  return tracks
     .map((t, i) => {
       const current = state?.track?.uri && state.track.uri === t.uri;
       // `data-play` is the row's index, which is all the click handler needs.
@@ -2081,7 +2013,9 @@ function trackTable(tracks) {
       </div>`;
     })
     .join("");
+}
 
+function trackTable(tracks) {
   return `<div class="track-head">
       <div style="text-align:right">#</div>
       <div>Title</div>
@@ -2089,7 +2023,7 @@ function trackTable(tracks) {
       <div class="col-added">Date added</div>
       <div></div>
       <div style="text-align:right">Time</div>
-    </div>${rows}`;
+    </div>${trackRows(tracks)}`;
 }
 
 function wireCards(root) {
@@ -2177,6 +2111,7 @@ function detailHead({ kind, name, sub, cover, round, seed, saved }) {
           ${icon(saved ? "heart" : "heart-o")}
         </button>
         <button class="act" id="ctx-lyrics" title="Lyrics">${icon("lyrics")}</button>
+        <button class="act" id="ctx-more" title="More" hidden>${icon("dots")}</button>
       </div>
     </div>`;
 }
@@ -2222,6 +2157,196 @@ async function renderPlaylist(content, id) {
     call({ cmd: "loadContext", uri, startPlaying: true });
   wireDetail(uri);
   wireTracks(content, tracks.items, uri);
+
+  if (currentPlaylistIsMine) {
+    wirePlaylistEditing(content, id, pl);
+    wireReorder(content, id, tracks.items);
+  }
+}
+
+/* --------------------------------------------------- playlist editing */
+
+/** Rename, describe or remove a playlist you own. */
+function wirePlaylistEditing(content, id, playlist) {
+  const more = content.querySelector("#ctx-more");
+  if (!more) return;
+  more.hidden = false;
+
+  more.onclick = (e) => {
+    e.stopPropagation();
+    const box = more.getBoundingClientRect();
+    openCtx(box.left, box.bottom + 6, [
+      {
+        id: "rename",
+        icon: "browse",
+        label: "Rename",
+        run: () =>
+          askFor("Rename playlist", playlist.name || "", async (name) => {
+            await call({ cmd: "renamePlaylist", playlistId: id, name });
+            toast("Renamed");
+            playlistCache = null;
+            renderLibrary();
+            render();
+          }),
+      },
+      {
+        id: "describe",
+        icon: "browse",
+        label: "Edit description",
+        run: () =>
+          askFor("Playlist description", playlist.description || "", async (description) => {
+            await call({ cmd: "describePlaylist", playlistId: id, description });
+            toast("Description saved");
+          }),
+      },
+      "-",
+      {
+        id: "delete",
+        icon: "x",
+        label: "Delete playlist",
+        run: async () => {
+          // Spotify keeps it recoverable from the web player, which is why
+          // this asks once rather than twice.
+          if (!(await confirmAction(`Delete “${playlist.name}”?`))) return;
+          await call({ cmd: "unfollowPlaylist", playlistId: id });
+          toast("Playlist deleted");
+          playlistCache = null;
+          renderLibrary();
+          navigate("home");
+        },
+      },
+    ]);
+  };
+}
+
+/** A one-field prompt, since the platform's own is not available here. */
+function askFor(title, value, done) {
+  closePopovers();
+  const pop = el("div", { className: "popover top" });
+  pop.style.cssText =
+    "left:50%;right:auto;top:80px;transform:translateX(-50%);width:min(420px,84vw)";
+  pop.innerHTML = `
+    <h3>${esc(title)}</h3>
+    <div class="jam-input">
+      <input id="ask-value" value="${esc(value)}" autocomplete="off" />
+      <button class="pill accent" id="ask-ok">Save</button>
+    </div>`;
+  $("#popovers").append(pop);
+
+  const input = pop.querySelector("#ask-value");
+  input.focus();
+  input.select();
+
+  const submit = async () => {
+    const next = input.value.trim();
+    closePopovers();
+    if (!next && title.startsWith("Rename")) return;
+    try {
+      await done(next);
+    } catch {
+      /* the daemon reported it */
+    }
+  };
+
+  pop.querySelector("#ask-ok").onclick = submit;
+  input.onkeydown = (e) => {
+    if (e.key === "Enter") submit();
+    if (e.key === "Escape") closePopovers();
+  };
+}
+
+/** Ask before something irreversible, resolving to true or false. */
+function confirmAction(question) {
+  return new Promise((resolve) => {
+    closePopovers();
+    const pop = el("div", { className: "popover top" });
+    pop.style.cssText =
+      "left:50%;right:auto;top:80px;transform:translateX(-50%);width:min(420px,84vw)";
+    pop.innerHTML = `
+      <h3>${esc(question)}</h3>
+      <p class="hint">It leaves your library. Spotify keeps it recoverable
+         from the web player for a while.</p>
+      <div class="jam-input">
+        <button class="pill" id="confirm-no">Cancel</button>
+        <button class="pill accent" id="confirm-yes">Delete</button>
+      </div>`;
+    $("#popovers").append(pop);
+
+    pop.querySelector("#confirm-no").onclick = () => {
+      closePopovers();
+      resolve(false);
+    };
+    pop.querySelector("#confirm-yes").onclick = () => {
+      closePopovers();
+      resolve(true);
+    };
+  });
+}
+
+/** Drag a row to move it, in a playlist you own. */
+function wireReorder(content, id, tracks) {
+  const rows = [...content.querySelectorAll("[data-play]")];
+  let from = null;
+
+  rows.forEach((row) => {
+    row.draggable = true;
+
+    row.ondragstart = (e) => {
+      from = Number(row.dataset.play);
+      row.classList.add("dragging");
+      // Firefox refuses to start a drag without data on the transfer.
+      e.dataTransfer.effectAllowed = "move";
+      e.dataTransfer.setData("text/plain", String(from));
+    };
+
+    row.ondragover = (e) => {
+      if (from === null) return;
+      e.preventDefault();
+      row.classList.add("drop-target");
+    };
+
+    row.ondragleave = () => row.classList.remove("drop-target");
+
+    row.ondragend = () => {
+      row.classList.remove("dragging");
+      rows.forEach((r) => r.classList.remove("drop-target"));
+    };
+
+    row.ondrop = async (e) => {
+      e.preventDefault();
+      row.classList.remove("drop-target");
+      const to = Number(row.dataset.play);
+      if (from === null || from === to) return;
+
+      const moved = from;
+      from = null;
+
+      // Move it on screen first: waiting for a round trip to reorder a list
+      // someone just dragged feels broken even when it is fast.
+      const [track] = tracks.splice(moved, 1);
+      tracks.splice(to, 0, track);
+      renderPlaylistRows(content, tracks, id);
+
+      try {
+        await call({ cmd: "reorderPlaylist", playlistId: id, from: moved, to });
+      } catch {
+        // Put it back: the server is the truth.
+        playlistCache = null;
+        render();
+      }
+    };
+  });
+}
+
+/** Redraw just the rows of a playlist, keeping the header where it is. */
+function renderPlaylistRows(content, tracks, id) {
+  const table = content.querySelector(".track-head")?.parentElement;
+  if (!table) return;
+  const rows = table.querySelectorAll("[data-play]");
+  rows.forEach((r) => r.remove());
+  table.insertAdjacentHTML("beforeend", trackRows(tracks));
+  wireTracks(content, tracks, `spotify:playlist:${id}`);
+  wireReorder(content, id, tracks);
 }
 
 async function renderAlbum(content, id) {

@@ -204,6 +204,13 @@ impl Daemon {
             s.device_name = engine.device_name().to_string();
         }
 
+        // The saved equaliser applies to the session being started, not the
+        // one after it.
+        {
+            let saved = crate::config::load().settings;
+            engine.set_equaliser(saved.equaliser, &saved.equaliser_gains);
+        }
+
         *self.engine.write().await = Some(engine);
         *self.web.write().await = web_client;
         *self.jam.write().await = Some(jam);
@@ -678,6 +685,37 @@ impl Daemon {
                 Ok(Payload::Ok)
             }
 
+            DescribePlaylist {
+                playlist_id,
+                description,
+            } => {
+                let web = self.require_web().await?;
+                let web = web.as_ref().expect("checked by require_web");
+                web.describe_playlist(&playlist_id, description.trim()).await?;
+                Ok(Payload::Ok)
+            }
+
+            ReorderPlaylist {
+                playlist_id,
+                from,
+                to,
+            } => {
+                let web = self.require_web().await?;
+                let web = web.as_ref().expect("checked by require_web");
+                if from == to {
+                    return Ok(Payload::Ok);
+                }
+                web.reorder_playlist(&playlist_id, from, to).await?;
+                Ok(Payload::Ok)
+            }
+
+            UnfollowPlaylist { playlist_id } => {
+                let web = self.require_web().await?;
+                let web = web.as_ref().expect("checked by require_web");
+                web.unfollow_playlist(&playlist_id).await?;
+                Ok(Payload::Ok)
+            }
+
             GetAlbum { id } => {
                 let web = self.require_web().await?;
                 let web = web.as_ref().expect("checked by require_web");
@@ -756,6 +794,12 @@ impl Daemon {
                 };
                 if settings.device_name.trim().is_empty() {
                     settings.device_name = self.config.device_name.clone();
+                }
+
+                // The equaliser is the one setting that does not need a
+                // restart: it lives in the sink, which is already running.
+                if let Some(engine) = self.engine.read().await.as_ref() {
+                    engine.set_equaliser(settings.equaliser, &settings.equaliser_gains);
                 }
 
                 let mut cfg = crate::config::load();

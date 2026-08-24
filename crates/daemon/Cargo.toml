@@ -14,6 +14,7 @@ name = "rustify-ctl"
 path = "src/bin/spotify-ctl.rs"
 
 [dependencies]
+discord-rich-presence = "1"
 spotify-proto.workspace = true
 spotify-player-core.workspace = true
 spotify-web.workspace = true

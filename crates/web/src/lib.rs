@@ -793,6 +793,55 @@ impl WebClient {
         .map(|_| ())
     }
 
+    /// Change a playlist's description, leaving its name alone.
+    pub async fn describe_playlist(&self, playlist_id: &str, description: &str) -> Result<()> {
+        let pid = PlaylistId::from_id_or_uri(playlist_id)
+            .context("parsing playlist id")?
+            .into_static();
+        retrying("describing the playlist", || {
+            self.client
+                .playlist_change_detail(pid.clone(), None, None, Some(description), None)
+        })
+        .await
+        .map(|_| ())
+    }
+
+    /// Move the track at `from` so that it sits at `to`.
+    ///
+    /// Spotify takes an insertion point rather than a destination index, and
+    /// the two differ once the moved track has been lifted out: dragging
+    /// downwards has to account for everything above closing up behind it.
+    pub async fn reorder_playlist(&self, playlist_id: &str, from: u32, to: u32) -> Result<()> {
+        let pid = PlaylistId::from_id_or_uri(playlist_id)
+            .context("parsing playlist id")?
+            .into_static();
+
+        let insert_before = if to > from { to + 1 } else { to };
+
+        retrying("reordering the playlist", || {
+            self.client
+                .playlist_reorder_items(pid.clone(), Some(from as i32), Some(insert_before as i32), Some(1), None)
+        })
+        .await
+        .map(|_| ())
+    }
+
+    /// Remove a playlist from the library.
+    ///
+    /// Spotify has no delete: a playlist you own is unfollowed, which takes
+    /// it off your shelf and leaves it recoverable from the web player for a
+    /// while. That is what the official client's "Delete" does too.
+    pub async fn unfollow_playlist(&self, playlist_id: &str) -> Result<()> {
+        let pid = PlaylistId::from_id_or_uri(playlist_id)
+            .context("parsing playlist id")?
+            .into_static();
+        retrying("removing the playlist", || {
+            self.client.playlist_unfollow(pid.clone())
+        })
+        .await
+        .map(|_| ())
+    }
+
     /// Name and artwork for a playlist, by uri or id.
     pub async fn playlist_meta(&self, uri: &str) -> Result<Option<wire::Playlist>> {
         #[derive(Default, serde::Deserialize)]

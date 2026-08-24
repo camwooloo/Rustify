@@ -16,7 +16,6 @@ mod tray;
 /// Label of the miniplayer window.
 const MINI_WINDOW: &str = "mini";
 
-mod marketplace;
 mod spicetify;
 mod statsfm;
 mod update;
@@ -113,35 +112,6 @@ async fn close_mini(app: tauri::AppHandle, restore: bool) -> Result<(), String> 
         }
     }
     Ok(())
-}
-
-/// One kind of Marketplace listing: extensions, themes, apps or snippets.
-#[tauri::command]
-async fn marketplace(
-    app: tauri::AppHandle,
-    kind: String,
-    refresh: bool,
-) -> Result<Vec<marketplace::Item>, String> {
-    let dir = app
-        .path()
-        .app_cache_dir()
-        .map_err(|e| format!("no cache directory: {e}"))?;
-
-    marketplace::catalogue(dir, kind, refresh)
-        .await
-        .map_err(|e| format!("{e:#}"))
-}
-
-/// A marketplace theme's colour schemes, fetched when it is opened.
-#[tauri::command]
-async fn marketplace_schemes(
-    repo: String,
-    branch: String,
-    path: String,
-) -> Result<Vec<spicetify::Scheme>, String> {
-    marketplace::schemes(&repo, &branch, &path)
-        .await
-        .map_err(|e| format!("{e:#}"))
 }
 
 /// The Spicetify theme catalogue, cached on disk between runs.
@@ -329,8 +299,6 @@ fn main() {
             apply_update,
             update_installs_itself,
             spicetify_themes,
-            marketplace,
-            marketplace_schemes,
             open_mini,
             close_mini,
             statsfm_search,

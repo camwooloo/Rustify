@@ -7,6 +7,9 @@
 use std::sync::Arc;
 
 use anyhow::{Context, Result};
+use librespot_playback::audio_backend::{Sink, SinkResult};
+use librespot_playback::convert::Converter;
+use librespot_playback::decoder::AudioPacket;
 use librespot_connect::{ConnectConfig, LoadContextOptions, LoadRequest, LoadRequestOptions, Options, PlayingTrack, Spirc};
 use librespot_core::{
     authentication::Credentials, cache::Cache, config::DeviceType, Session, SessionConfig,
@@ -55,6 +58,9 @@ pub struct Engine {
     state: Arc<RwLock<PlayerState>>,
     events: broadcast::Sender<Event>,
     config: EngineConfig,
+    /// Shared with the sink, so a change of gains is heard immediately
+    /// rather than at the next session.
+    equaliser: crate::eq::SharedEq,
 }
 
 /// Create an unconnected session.
@@ -101,11 +107,21 @@ impl Engine {
         // (cpal -> WASAPI on Windows).
         let backend = audio_backend::find(None).context("no audio backend compiled in")?;
 
+        // The equaliser sits between the decoder and the device, so it can be
+        // changed while a track plays rather than at the next session.
+        let equaliser = crate::eq::shared();
+        let eq_for_sink = equaliser.clone();
+
         let player = Player::new(
             player_config,
             session.clone(),
             mixer.get_soft_volume(),
-            move || backend(None, librespot_playback::config::AudioFormat::default()),
+            move || {
+                Box::new(EqualisedSink {
+                    inner: backend(None, librespot_playback::config::AudioFormat::default()),
+                    equaliser: crate::eq::Equaliser::new(eq_for_sink.clone(), 2),
+                })
+            },
         );
 
         let player_events = player.get_player_event_channel();
@@ -149,6 +165,7 @@ impl Engine {
             state,
             events,
             config,
+            equaliser,
         });
 
         tokio::spawn(pump_player_events(
@@ -262,6 +279,11 @@ impl Engine {
         self.spirc
             .load(LoadRequest::from_tracks(uris, options))
             .context("loading tracks")
+    }
+
+    /// Set the equaliser. Takes effect mid-track.
+    pub fn set_equaliser(&self, enabled: bool, gains: &[f32]) {
+        crate::eq::set(&self.equaliser, enabled, gains);
     }
 
     /// Become the active Connect device.
@@ -430,4 +452,37 @@ async fn pump_player_events(
     }
 
     warn!("player event channel closed");
+}
+
+/// A sink that equalises on the way through.
+///
+/// librespot builds its sink from a closure, which is the one place where
+/// every decoded packet passes through code this crate owns. At flat gain the
+/// equaliser returns immediately, so the wrapper costs a function call.
+struct EqualisedSink {
+    inner: Box<dyn Sink>,
+    equaliser: crate::eq::Equaliser,
+}
+
+impl Sink for EqualisedSink {
+    fn start(&mut self) -> SinkResult<()> {
+        self.inner.start()
+    }
+
+    fn stop(&mut self) -> SinkResult<()> {
+        self.inner.stop()
+    }
+
+    fn write(&mut self, packet: AudioPacket, converter: &mut Converter) -> SinkResult<()> {
+        // Raw packets are already encoded for the device (passthrough), and
+        // there is nothing meaningful to filter in them.
+        let packet = match packet {
+            AudioPacket::Samples(mut samples) => {
+                self.equaliser.process(&mut samples);
+                AudioPacket::Samples(samples)
+            }
+            raw => raw,
+        };
+        self.inner.write(packet, converter)
+    }
 }

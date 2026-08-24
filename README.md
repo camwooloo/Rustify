@@ -1,215 +1,207 @@
-# spotify-rust
+<div align="center">
 
-A Spotify desktop client in Rust. Built around a split that the official app
-cannot offer: **the player and the window are separate processes.**
+<img src="assets/logo.svg" width="132" alt="Rustify">
+
+# Rustify
+
+**A Spotify player in Rust, where the music doesn't live in the window.**
+
+[![Release](https://img.shields.io/github/v/release/camwooloo/Rustify?style=flat-square&color=1ed760&label=release)](https://github.com/camwooloo/Rustify/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/camwooloo/Rustify/total?style=flat-square&color=1ed760)](https://github.com/camwooloo/Rustify/releases)
+![Platforms](https://img.shields.io/badge/windows%20%C2%B7%20macos%20%C2%B7%20linux-1ed760?style=flat-square)
+![Rust](https://img.shields.io/badge/rust-stable-1ed760?style=flat-square)
+
+<img src="assets/screenshots/home.png" width="880" alt="Rustify's home page">
+
+</div>
+
+---
+
+## The idea
+
+The window and the player are **two separate processes**.
 
 ```
-┌──────────────────────────┐
-│  spotify-rust.exe        │   Tauri window (WebView2)
-│  UI only, no state       │   closeable at any time
-└───────────┬──────────────┘
-            │  newline-delimited JSON over 127.0.0.1:4381
-┌───────────▼──────────────┐
-│  spotifyd-rs.exe         │   librespot playback
-│  ~15 MB RSS, no GPU      │   Spotify Connect endpoint
-│  keeps playing when the  │   Web API + Jam
-│  window is closed        │
-└──────────────────────────┘
+┌────────────────────────────┐
+│  rustify                   │   the window: Tauri + WebView
+│  no state of its own       │   close it whenever you like
+└─────────────┬──────────────┘
+              │  newline-delimited JSON over 127.0.0.1:4381
+┌─────────────▼──────────────┐
+│  rustifyd                  │   the player: librespot
+│  ~15 MB, no GPU context    │   a Spotify Connect device
+│  keeps playing regardless  │   Web API · lyrics · Jam
+└────────────────────────────┘
 ```
 
-Close the window before launching a game. Music keeps playing from a process
-that has never created a GPU context, never composited a frame, and never
-loaded Chromium.
+Close the window before you launch a game. The music keeps going from a
+process that has never created a GPU context, never composited a frame and
+never loaded a browser engine. Reopen it whenever — it reconnects to whatever
+was already playing.
 
-## Quick start
+That is the whole reason this exists. Everything else is built on top of it.
+
+## Download
+
+Three downloads per release, one per platform.
+
+| Platform | File | Notes |
+|---|---|---|
+| **Windows** | `Rustify_x.y.z_x64-setup.exe` | Installs per-user, so no admin prompt. Updates itself silently. |
+| **macOS** | `Rustify_x.y.z_aarch64.dmg` | Apple Silicon. Unsigned — first open needs right-click → **Open**. |
+| **Linux** | `Rustify_x.y.z_amd64.AppImage` | `chmod +x` and run. |
+
+**[→ Latest release](https://github.com/camwooloo/Rustify/releases/latest)**
+
+> **Spotify Premium is required.** librespot cannot stream on a free account —
+> this is a limit of Spotify's protocol, not a missing feature.
+
+---
+
+## What's in it
+
+### Spotify, as you expect it
+
+Your library, playlists, albums, artists, Liked Songs, search with filters,
+a queue, recently played, and time-synced lyrics. Playback runs through
+librespot, so Rustify appears as a normal **Spotify Connect** device — start
+something on your phone and pick it up here, or the other way round.
+
+<img src="assets/screenshots/playlist.png" width="820" alt="A playlist, with the track list and editing menu">
+
+Playlists are editable: rename, describe, delete, add and remove tracks, and
+**drag rows to reorder** them.
+
+### Extensions
+
+Parts of Rustify that ship switched off. Everything here was written for this
+app — nothing is fetched from a stranger's repository and run next to your
+account.
+
+<img src="assets/screenshots/extensions.png" width="820" alt="The extensions page, showing Discord Rich Presence and the equaliser">
+
+- **Discord Rich Presence** — shows what you're playing, with a link to the
+  project underneath. Discord's own Spotify integration only reads the
+  official client, so without this, listening here shows nothing. Off by
+  default.
+- **Equaliser** — five bands, applied between the decoder and your speakers,
+  heard immediately. Spotify's own desktop client doesn't have one at all.
+
+### Themes
+
+Colour schemes in [Spicetify's](https://github.com/spicetify/spicetify-themes)
+format — read from any Spicetify install on your machine and from the
+community collection. Only the colours are read; never anyone's code.
+
+<img src="assets/screenshots/theme-applied.png" width="820" alt="Rustify wearing a light theme">
+
+A scheme names about ten colours and the interface needs thirty, so the rest
+are derived by moving a named surface towards that theme's own text colour —
+which is why light schemes look deliberate rather than washed out.
+
+### Listening stats
+
+Connect a [stats.fm](https://stats.fm) profile and see hours, top tracks,
+artists and albums over four weeks, six months or all time. Every row plays:
+a track starts, an artist or album opens its page here.
+
+<img src="assets/screenshots/stats.png" width="820" alt="The listening stats page">
+
+### Miniplayer and full screen
+
+<div align="center">
+<img src="assets/screenshots/miniplayer.png" width="240" alt="The miniplayer">
+</div>
+
+A small window that stays above everything else, wearing whatever theme you
+have on, and a full-screen view that fills the window with the artwork.
+
+### The rest
+
+- **Jam** — Spotify's shared listening sessions, hosting and joining
+- **Windows integration** — media keys, the system Now Playing panel, taskbar
+  thumbnail buttons, tray
+- **Silent updates** on Windows: one click, a progress bar, and Rustify
+  reopens on the new version
+- **Offline-friendly**: the theme catalogue and audio cache both work without
+  a network once fetched
+
+---
+
+## Building it
 
 ```bash
 cargo build --release
 ```
 
-Then start the daemon and the app:
+Then the window, which bundles the daemon beside it:
 
 ```bash
-./target/release/spotifyd-rs.exe
+cd app/src-tauri && cargo tauri build
+```
+
+Requirements: a stable Rust toolchain, and on Linux `libwebkit2gtk-4.1-dev`,
+`libasound2-dev`, `librsvg2-dev` and `patchelf`. Releases are built by
+[CI](.github/workflows/release.yml) on a runner per platform.
+
+Running the pieces separately during development:
+
+```bash
+./target/release/rustifyd
 ```
 
 ```bash
-./target/release/spotify-rust.exe
+./target/release/rustify
 ```
 
-The app starts the daemon automatically if it is not already running, so in
-normal use you only launch `spotify-rust.exe`. Click **Log in**; your browser
-opens for Spotify's OAuth flow and the token is cached, so this is a one-time
-step.
+The window starts the daemon itself if it isn't already up, so you only need
+both commands when you want the daemon's log in front of you.
 
-**Spotify Premium is required for playback.** Browsing works on a free account;
-audio does not. This is a librespot constraint, not a bug.
+> If you fork this, replace the Discord application id in
+> `crates/daemon/src/presence.rs` with your own — the placeholder there
+> connects to nothing.
 
-### Second step: a Client ID for browsing
+---
 
-Playback works immediately after signing in. **Search, playlists and your
-library need one extra step**, and there is no way around it:
+## Where the walls are
 
-1. Open [developer.spotify.com/dashboard](https://developer.spotify.com/dashboard)
-2. **Create app** — any name
-3. Redirect URI, exactly: `http://127.0.0.1:4382/login`
-4. Tick **Web API**, save, copy the **Client ID**
-5. Paste it into the app when prompted
+Not shortcuts. Limits imposed from outside, listed so you know which is which.
 
-Why: streaming authenticates with librespot's shared "keymaster" client id,
-which is the only id that can request the scopes the streaming session needs.
-But Spotify rate-limits `api.spotify.com` **per client id**, and that id is
-shared by every librespot-derived project in existence. Its budget is
-permanently exhausted — a first request from a cold process returns 429
-immediately. Browsing therefore needs an id that belongs to you.
-
-The two halves are authorised separately and cached separately
-(`token.json` and `token-web.json`), so one never invalidates the other. You
-can skip this entirely and use the app as a Connect target controlled from
-your phone.
-
-You can also set the id without the UI:
-
-```bash
-SPOTIFY_RUST_CLIENT_ID=<your-client-id> ./target/release/spotifyd-rs.exe
-```
-
-## Testing it
-
-`spotify-ctl` speaks the same IPC protocol as the window, so you can exercise
-every layer without a GUI in the way. Run the daemon in one terminal and
-`spotify-ctl` in another.
-
-```bash
-./target/release/spotifyd-rs.exe
-```
-
-Work through these in order — each one proves a specific layer, so a failure
-tells you exactly which part is broken.
-
-| # | Command | Proves |
-| --- | --- | --- |
-| 1 | `spotify-ctl ping` | Daemon is up, IPC works |
-| 2 | `spotify-ctl login` | OAuth PKCE flow, token cache |
-| 3 | `spotify-ctl status` | Session established; confirms Premium |
-| 4 | `spotify-ctl search <thing>` | Web API layer |
-| 5 | `spotify-ctl play <uri>` | **Audio decode and output** |
-| 6 | `spotify-ctl devices` | Connect device list |
-| 7 | Open Spotify on your phone | This daemon appears as a device |
-| 8 | `spotify-ctl jam create` | Jam (experimental) |
-| 9 | `spotify-ctl listen` | Live event stream |
-
-Step 5 is the real milestone: it is the only path that exercises the access
-point handshake, the audio key exchange, Vorbis decode, and WASAPI output all
-at once. Step 7 is the satisfying one — control this app from your phone.
-
-`spotify-ctl listen` is the best debugging tool here. Leave it running in a
-spare terminal and drive playback from the app or your phone; every state
-change streams past. If something looks wrong in the UI, this shows whether
-the daemon or the UI is at fault.
-
-For deeper detail:
-
-```bash
-SPOTIFY_RUST_LOG=debug,librespot=debug ./target/release/spotifyd-rs.exe
-```
-
-### Testing the performance claim
-
-The point of this project is that closing the window costs nothing. Measure it
-rather than trusting it. Use PresentMon or CapFrameX (not an in-game FPS
-counter — you want **1% low** frame times, which is where stutter shows up and
-average FPS hides it).
-
-Run the same benchmark scene three times:
-
-1. Nothing else running — your baseline
-2. Official Spotify running and playing
-3. `spotifyd-rs.exe` running and playing, window closed
-
-Run 3 should be indistinguishable from run 1. If runs 1 and 2 also match, the
-stutter was never Spotify and it is worth looking at drivers, background
-processes, or thermals instead.
-
-### Configuration
-
-| Variable | Default | Purpose |
-| --- | --- | --- |
-| `SPOTIFY_RUST_PORT` | `4381` | IPC port (loopback only) |
-| `SPOTIFY_RUST_DEVICE_NAME` | `<hostname> (spotify-rust)` | Name in the Connect device list |
-| `SPOTIFY_RUST_LOG` | `info,librespot=warn` | `tracing` filter |
-
-## Layout
-
-| Path | Role |
-| --- | --- |
-| `crates/proto` | Wire protocol. The single definition of every command, event, and model. |
-| `crates/player` | OAuth (PKCE), librespot session, playback, Spirc/Connect. |
-| `crates/web` | Spotify Web API: search, library, catalogue, device list. |
-| `crates/jam` | Group Session over the private `social-connect` API. Experimental. |
-| `crates/daemon` | Binaries: `spotifyd-rs` (owns all state, serves IPC) and `spotify-ctl`. |
-| `app/src-tauri` | Window. A thin, disposable view. |
-| `app/ui` | HTML/CSS/JS front end. No framework, no build step. |
-
-There are two OAuth identities, for the reason described above: the keymaster
-id for streaming, and your own app id for the Web API. `crates/player/src/auth.rs`
-models this as a `Profile`, so each has its own scopes and its own token cache.
-
-## Working on the UI
-
-The front end can be developed in a plain browser with no Rust build at all.
-Serve `app/ui` with any static server and stub `window.__TAURI__` — see the
-mock harness pattern in the project history. Because the daemon owns all
-state, the UI has no logic to duplicate.
-
-## What works
-
-- Full-quality playback (320 kbps with Premium), gapless, with normalisation
-- Spotify Connect: this app appears in the device list on your phone, and can
-  hand playback off to any other device on the account
-- Search, playlists, saved tracks and albums, album and artist pages
-- Liking and unliking tracks
-- Transport, shuffle, three-state repeat, volume, seek
-- On-disk audio cache (capped at 4 GB) so repeat listens skip the network
-
-## What does not, and why
-
-These are not shortcuts taken during the build. They are limits imposed from
-outside, listed so you know where the walls are.
-
-**Spotify removed these Web API endpoints.** Nothing in this codebase can
+**Spotify removed these Web API endpoints**, and nothing in this codebase can
 bring them back:
 
-- Artist **top tracks** — the artist page shows discography only
-- Artist follower counts and genres
-- Recommendations, radio, "Made For You", related artists
-- Audio features and analysis, 30-second preview URLs
-- `country` and `product` on the user profile — market now resolves from the
-  token, and Premium status is read from the librespot session instead
+- Artist **top tracks** — artist pages show discography only
+- Recommendations, "Made For You", related artists
+- Audio features and analysis, 30-second previews
 
-**Jam is a private API.** It has no public documentation or support. Every
-endpoint in `crates/jam` was derived from observing official clients, so:
+Radio still works, but through a private endpoint rather than the documented
+one.
 
-- Joining an existing Jam is the better-understood path
-- Hosting works but is the more likely half to break
-- Responses parse permissively; a schema change degrades to missing data in
-  the UI rather than crashing
-- When it breaks, `crates/jam/src/lib.rs` is the only file to revisit
+**Private APIs.** Jam, lyrics and radio are reverse-engineered from official
+clients. They parse permissively, so a schema change degrades to missing data
+rather than a crash — and when one breaks, `crates/jam` is the place to look.
 
-**Not implemented:** free-tier ad-supported playback (librespot does not
-support it), podcast video, audiobooks, lyrics, and Canvas.
+**Play next** is not implemented. The public API can only append to the queue,
+and the private `set_queue` command that official clients use is refused for
+this device. The attempt is preserved on the `play-next-spike` branch.
 
-## Note on the lockfile
+**Friend activity** is not implemented. The buddylist endpoint rejects every
+credential this app can obtain; it only accepts a token minted from a browser
+session cookie.
 
-`Cargo.lock` pins `vergen` to 9.0.6. Upstream `vergen 9.1.0` moved to
-`vergen-lib 9.1.0` while `vergen-gitcl 1.0` still requires `vergen-lib 0.1`,
-and librespot-core's build script fails to compile with the combination cargo
-picks by default. Do not run `cargo update -p vergen` without re-testing the
-build.
+**Free accounts** cannot play. librespot exits on a non-Premium account.
+
+**The binaries are unsigned.** Windows SmartScreen and macOS Gatekeeper will
+both say so.
+
+---
 
 ## Legal
 
-This uses reverse-engineered Spotify protocols via librespot, which is against
-Spotify's Terms of Service, and reproduces Spotify's visual design. It is a
-personal project. Do not distribute it, and do not present it as a Spotify
-product.
+Rustify is a personal project, not a Spotify product, and is not affiliated
+with or endorsed by Spotify.
+
+It plays through **librespot**, which implements Spotify's protocol by
+reverse engineering — outside Spotify's Terms of Service — and it deliberately
+resembles Spotify's interface. A Premium account is required, and the account
+holder carries whatever risk that implies. Use it with that in mind.

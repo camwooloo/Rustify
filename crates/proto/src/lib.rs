@@ -144,6 +144,22 @@ pub enum Command {
     /// Remove every occurrence of these tracks from a playlist.
     #[serde(rename_all = "camelCase")]
     RemoveFromPlaylist { playlist_id: String, uris: Vec<String> },
+    /// Set a playlist's description.
+    #[serde(rename_all = "camelCase")]
+    DescribePlaylist {
+        playlist_id: String,
+        description: String,
+    },
+    /// Move one track within a playlist.
+    #[serde(rename_all = "camelCase")]
+    ReorderPlaylist {
+        playlist_id: String,
+        from: u32,
+        to: u32,
+    },
+    /// Take a playlist off the library shelf.
+    #[serde(rename_all = "camelCase")]
+    UnfollowPlaylist { playlist_id: String },
     /// Rename a playlist.
     #[serde(rename_all = "camelCase")]
     RenamePlaylist { playlist_id: String, name: String },
@@ -483,6 +499,17 @@ pub struct Settings {
     pub device_name: String,
     /// Cache decoded audio on disk.
     pub cache_audio: bool,
+    /// Show what is playing on Discord. Off until asked for: a status that
+    /// appears without being asked for is a surprise, not a feature.
+    #[serde(default)]
+    pub discord_presence: bool,
+    /// Run the equaliser. Off means the audio is untouched, not flattened.
+    #[serde(default)]
+    pub equaliser: bool,
+    /// Gain per band in decibels, low to high. Five bands, matching the ones
+    /// Spotify's mobile equaliser uses.
+    #[serde(default)]
+    pub equaliser_gains: Vec<f32>,
 }
 
 impl Default for Settings {
@@ -493,6 +520,9 @@ impl Default for Settings {
             autoplay: true,
             device_name: String::new(),
             cache_audio: true,
+            discord_presence: false,
+            equaliser: false,
+            equaliser_gains: vec![0.0; 5],
         }
     }
 }

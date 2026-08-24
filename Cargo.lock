@@ -513,7 +513,7 @@ checksum = "d38f2da7a0a2c4ccf0065be06397cc26a81f4e528be095826eee9d4adbb8c60f"
 dependencies = [
  "byteorder",
  "fnv",
- "uuid",
+ "uuid 1.24.1",
 ]
 
 [[package]]
@@ -1033,6 +1033,21 @@ dependencies = [
  "option-ext",
  "redox_users",
  "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "discord-rich-presence"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "90c55d69cab17c19677ce3a5f8face993a9e6eaf847fecac3547f3a3ff4a2494"
+dependencies = [
+ "log",
+ "serde",
+ "serde_derive",
+ "serde_json",
+ "serde_repr",
+ "thiserror 2.0.20",
+ "uuid 0.8.2",
 ]
 
 [[package]]
@@ -2558,7 +2573,7 @@ dependencies = [
  "thiserror 2.0.20",
  "tokio",
  "tokio-stream",
- "uuid",
+ "uuid 1.24.1",
 ]
 
 [[package]]
@@ -2614,7 +2629,7 @@ dependencies = [
  "tokio-tungstenite",
  "tokio-util",
  "url",
- "uuid",
+ "uuid 1.24.1",
  "vergen-gitcl",
 ]
 
@@ -2633,7 +2648,7 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror 2.0.20",
- "uuid",
+ "uuid 1.24.1",
 ]
 
 [[package]]
@@ -4344,7 +4359,7 @@ dependencies = [
  "serde",
  "serde_json",
  "url",
- "uuid",
+ "uuid 1.24.1",
 ]
 
 [[package]]
@@ -4804,10 +4819,11 @@ dependencies = [
 
 [[package]]
 name = "spotify-daemon"
-version = "0.9.0"
+version = "1.0.0"
 dependencies = [
  "anyhow",
  "directories",
+ "discord-rich-presence",
  "futures-util",
  "librespot-core",
  "librespot-playback",
@@ -4826,7 +4842,7 @@ dependencies = [
 
 [[package]]
 name = "spotify-jam"
-version = "0.9.0"
+version = "1.0.0"
 dependencies = [
  "anyhow",
  "bytes",
@@ -4845,7 +4861,7 @@ dependencies = [
 
 [[package]]
 name = "spotify-player-core"
-version = "0.9.0"
+version = "1.0.0"
 dependencies = [
  "anyhow",
  "directories",
@@ -4869,7 +4885,7 @@ dependencies = [
 
 [[package]]
 name = "spotify-proto"
-version = "0.9.0"
+version = "1.0.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -4877,7 +4893,7 @@ dependencies = [
 
 [[package]]
 name = "spotify-rust-app"
-version = "0.9.0"
+version = "1.0.0"
 dependencies = [
  "anyhow",
  "reqwest 0.12.28",
@@ -4895,7 +4911,7 @@ dependencies = [
 
 [[package]]
 name = "spotify-web"
-version = "0.9.0"
+version = "1.0.0"
 dependencies = [
  "anyhow",
  "chrono",
@@ -5333,7 +5349,7 @@ dependencies = [
  "thiserror 2.0.20",
  "time",
  "url",
- "uuid",
+ "uuid 1.24.1",
  "walkdir",
 ]
 
@@ -5452,7 +5468,7 @@ dependencies = [
  "toml 1.1.4+spec-1.1.0",
  "url",
  "urlpattern",
- "uuid",
+ "uuid 1.24.1",
  "walkdir",
 ]
 
@@ -6072,6 +6088,15 @@ name = "utf8_iter"
 version = "1.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b6c140620e7ffbb22c2dee59cafe6084a59b5ffc27a8859a5f0d494b5d52b6be"
+
+[[package]]
+name = "uuid"
+version = "0.8.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bc5cf98d8186244414c848017f0e2676b3fcb46807f6668a97dfe67359a3c4b7"
+dependencies = [
+ "getrandom 0.2.17",
+]
 
 [[package]]
 name = "uuid"
@@ -7037,7 +7062,7 @@ dependencies = [
  "serde_repr",
  "tracing",
  "uds_windows",
- "uuid",
+ "uuid 1.24.1",
  "windows-sys 0.61.2",
  "winnow 1.0.4",
  "zbus_macros",

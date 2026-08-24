@@ -4,6 +4,7 @@
 pub mod auth;
 mod convert;
 pub mod engine;
+pub mod eq;
 
 pub use auth::{begin_login, current_token, PendingLogin, StoredToken};
 pub use engine::{new_session, Engine, EngineConfig};
