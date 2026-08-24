@@ -33,6 +33,16 @@ jobs:
         with:
           workspaces: ". -> target"
           key: tests
+      # Tauri's build script checks that every bundle resource exists before
+      # it will compile the app crate at all, and the daemon is one of them.
+      # The tests never read these files — they only have to be there — so
+      # empty stand-ins buy the app crate's tests without building librespot
+      # twice on the way to running them.
+      - name: Stand in for the bundled binaries
+        run: |
+          mkdir -p app/src-tauri/binaries
+          touch app/src-tauri/binaries/rustifyd app/src-tauri/binaries/rustify-ctl
+
       # The ignored ones reach the live stats.fm and GitHub APIs, so they are
       # left to run by hand rather than made a condition of releasing.
       - run: cargo test --workspace
