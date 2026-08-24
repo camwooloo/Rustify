@@ -74,7 +74,7 @@ Playlists are editable: rename, describe, delete, add and remove tracks, and
 
 ### Extensions
 
-Parts of Rustify that ship switched off. Everything here was written for this
+Parts of Rustify you switch on and off. Everything here was written for this
 app — nothing is fetched from a stranger's repository and run next to your
 account.
 

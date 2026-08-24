@@ -12,6 +12,7 @@
  */
 
 const VIZ_KEY = "rustify.visualiser";
+const VIZ_ON_KEY = "rustify.visualiser.enabled";
 const VIZ_BANDS = 48;
 
 const VIZ_STYLES = [
@@ -362,6 +363,23 @@ async function setVisualiser(on) {
 
   vizFrame = requestAnimationFrame(vizRender);
 }
+
+/** Is the extension switched on? On unless someone said otherwise. */
+function visualiserEnabled() {
+  return localStorage.getItem(VIZ_ON_KEY) !== "0";
+}
+
+/** Switch the extension on or off, which shows or hides its button. */
+function enableVisualiser(on) {
+  localStorage.setItem(VIZ_ON_KEY, on ? "1" : "0");
+  const button = document.getElementById("btn-viz");
+  if (button) button.hidden = !on;
+  // Leaving the view up after switching the extension off would strand it
+  // with no way back to it.
+  if (!on && vizOpen) setVisualiser(false);
+}
+
+enableVisualiser(visualiserEnabled());
 
 document.getElementById("btn-viz")?.addEventListener("click", () => setVisualiser(!vizOpen));
 

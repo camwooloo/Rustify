@@ -586,6 +586,13 @@ function highlightLyrics() {
  *  show, and the only one expanded by default in Settings. */
 const CHANGELOG = [
   {
+    v: "1.2.1",
+    d: "24 Aug 2026",
+    notes: [
+      "The visualiser is a switch on the extensions page like the others, rather than a button that opened it. Off takes its button out of the player bar",
+    ],
+  },
+  {
     v: "1.2.0",
     d: "24 Aug 2026",
     notes: [
@@ -1669,7 +1676,7 @@ async function renderHub(content, tab) {
           <p>Shows what you are playing on your Discord profile, with a link
              to the project underneath it. Discord's own Spotify integration
              only reads the official client, so this is how listening here
-             still shows up.</p>
+             still shows up. Off until you ask for it.</p>
         </div>
         ${toggleHtml("discordPresence", current.discordPresence)}
       </div>
@@ -1680,11 +1687,11 @@ async function renderHub(content, tab) {
         <div>
           <b>Visualiser</b>
           <p>A view of what is playing, drawn from the audio itself — bars,
-             mirrored, radial or a wave, over the artwork. It sits next to the
-             miniplayer and full screen in the player bar. Levels are analysed
-             only while it is open.</p>
+             mirrored, radial or a wave, over the artwork. Switched on, its
+             button sits next to the miniplayer and full screen in the player
+             bar. Levels are analysed only while the view is open.</p>
         </div>
-        <button class="pill" id="ext-viz">Open</button>
+        ${toggleHtml("visualiser", visualiserEnabled())}
       </div>
     </div>
 
@@ -1709,8 +1716,6 @@ async function renderHub(content, tab) {
       </div>
     </div>`;
 
-  body.querySelector("#ext-viz").onclick = () => setVisualiser(true);
-
   // Both toggles write straight through: a switch that needs a save button
   // is a switch people leave in the wrong position.
   body.querySelectorAll("[data-toggle]").forEach((b) => {
@@ -1720,6 +1725,11 @@ async function renderHub(content, tab) {
       b.setAttribute("aria-checked", on);
 
       const key = b.dataset.toggle;
+      if (key === "visualiser") {
+        enableVisualiser(on);
+        toast(on ? "Visualiser button shown" : "Visualiser button hidden");
+        return;
+      }
       if (key === "equaliser") {
         body.querySelector("#eq-panel").toggleAttribute("data-off", !on);
       }
