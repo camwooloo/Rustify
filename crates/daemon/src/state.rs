@@ -54,7 +54,19 @@ pub struct Daemon {
     pending_login: RwLock<Option<String>>,
     /// Whether a window is on screen. Gates the remote-playback poller.
     ui_visible: std::sync::atomic::AtomicBool,
+    /// When a window last asked for spectrum frames, in seconds since the
+    /// epoch. A visualiser that closes cleanly says so; one whose window
+    /// died is noticed here instead.
+    spectrum_asked_at: std::sync::atomic::AtomicU64,
     config: EngineConfig,
+}
+
+/// Seconds since the epoch, for the watchdog stamps.
+fn now_secs() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0)
 }
 
 impl Daemon {
@@ -74,6 +86,7 @@ impl Daemon {
             web_client_id: RwLock::new(None),
             // Assume visible: a client that never reports still works.
             ui_visible: std::sync::atomic::AtomicBool::new(true),
+            spectrum_asked_at: std::sync::atomic::AtomicU64::new(0),
             config,
         })
     }
@@ -222,6 +235,29 @@ impl Daemon {
 
         info!("daemon ready");
         Ok(())
+    }
+
+    /// Has a window asked for spectrum frames recently enough to keep
+    /// sending them? A visualiser refreshes its request while it is open.
+    pub fn spectrum_wanted(&self) -> bool {
+        let asked = self
+            .spectrum_asked_at
+            .load(std::sync::atomic::Ordering::Relaxed);
+        asked != 0 && now_secs().saturating_sub(asked) < 15
+    }
+
+    /// Stop analysing, and forget who asked.
+    pub async fn stop_spectrum(&self) {
+        self.spectrum_asked_at
+            .store(0, std::sync::atomic::Ordering::Relaxed);
+        if let Some(engine) = self.engine.read().await.as_ref() {
+            engine.watch_spectrum(false);
+        }
+    }
+
+    /// The current levels, if a player is running.
+    pub async fn spectrum(&self) -> Option<Vec<u8>> {
+        self.engine.read().await.as_ref().map(|e| e.spectrum())
     }
 
     /// Forward live Jam updates from the dealer into the event stream.
@@ -867,6 +903,16 @@ impl Daemon {
                     items: web.new_releases(limit).await?,
                     total: 0,
                 })
+            }
+
+            WatchSpectrum { on } => {
+                let engine = self.engine().await?;
+                engine.watch_spectrum(on);
+                // Stamped so the pump can give up on a window that vanished
+                // without switching it off.
+                self.spectrum_asked_at
+                    .store(now_secs(), std::sync::atomic::Ordering::Relaxed);
+                Ok(Payload::Ok)
             }
 
             StartRadio { seed_uri } => {

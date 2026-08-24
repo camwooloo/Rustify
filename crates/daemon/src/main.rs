@@ -136,6 +136,7 @@ async fn main() -> Result<()> {
 
     tokio::spawn(tick_position(daemon.clone()));
     tokio::spawn(drive_presence(daemon.clone()));
+    tokio::spawn(pump_spectrum(daemon.clone()));
     tokio::spawn(poll_remote(daemon.clone()));
     tokio::spawn(watch_session(daemon.clone()));
     tokio::spawn(watch_saved(daemon.clone()));
@@ -154,6 +155,35 @@ async fn main() -> Result<()> {
 /// when the window closed. librespot's own position events resync any drift.
 /// Only the broadcast is skipped when there are no receivers, which is where
 /// the actual cost is.
+/// Send spectrum frames to whoever is drawing a visualiser.
+///
+/// Thirty a second while one is open, nothing at all otherwise. The request
+/// expires, so a window that dies without switching it off costs a few
+/// seconds of analysis rather than leaving it running for the session.
+async fn pump_spectrum(daemon: std::sync::Arc<Daemon>) {
+    let mut frame = tokio::time::interval(Duration::from_millis(33));
+    let mut sending = false;
+
+    loop {
+        frame.tick().await;
+
+        if !daemon.spectrum_wanted() {
+            if sending {
+                daemon.stop_spectrum().await;
+                sending = false;
+            }
+            // Nothing is being analysed, so this loop is just a heartbeat.
+            tokio::time::sleep(Duration::from_millis(200)).await;
+            continue;
+        }
+
+        sending = true;
+        if let Some(bands) = daemon.spectrum().await {
+            let _ = daemon.events.send(Event::Spectrum { bands });
+        }
+    }
+}
+
 /// Keep Discord's status in step with what is playing.
 ///
 /// Driven by the event stream rather than a timer, so it costs nothing while

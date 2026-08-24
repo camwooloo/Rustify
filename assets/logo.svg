@@ -1,11 +1,12 @@
-<!-- Rustify's mark: a ringed planet whose ring is a record.
+<!-- Rustify's mark: a ringed planet whose ring is a bar visualiser.
+
      The ring passes behind the planet at the top and in front at the bottom,
-     which is what makes it read as Saturn rather than as a circle in a hoop.
-     Two grooves in the ring carry the record half of the idea without
-     needing detail that would vanish at 32px. -->
+     which is what makes it read as Saturn rather than a circle in a hoop.
+     Its bars vary just enough to read as levels. The planet keeps a dark
+     limb so the lit edge and the ring stay legible at 16px, and wears the
+     sound waves on its face. -->
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
   <defs>
-    <!-- Lit from the upper left, so the planet has a horizon. -->
     <radialGradient id="planet" cx="36%" cy="30%" r="82%">
       <stop offset="0%" stop-color="#31465c" />
       <stop offset="42%" stop-color="#16202c" />
@@ -13,57 +14,192 @@
     </radialGradient>
 
     <linearGradient id="ring" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#3be477" />
+      <stop offset="0%" stop-color="#5ff08e" />
       <stop offset="45%" stop-color="#1ed760" />
       <stop offset="100%" stop-color="#0a7d3a" />
     </linearGradient>
 
-    <!-- Light on the side facing the star, falling off before it reaches
-         the far edge, so the planet keeps a dark limb. -->
+    <!-- Light on the side facing the star, gone before the far edge. -->
     <radialGradient id="lit" cx="28%" cy="24%" r="62%">
-      <stop offset="0%" stop-color="#5ff08e" stop-opacity="0.95" />
-      <stop offset="38%" stop-color="#1ed760" stop-opacity="0.45" />
+      <stop offset="0%" stop-color="#5ff08e" stop-opacity="0.9" />
+      <stop offset="38%" stop-color="#1ed760" stop-opacity="0.42" />
       <stop offset="100%" stop-color="#1ed760" stop-opacity="0" />
     </radialGradient>
 
-    <!-- A hairline where the lit edge meets space: what keeps the planet
-         readable at sixteen pixels on a dark taskbar. -->
     <linearGradient id="edge" x1="10%" y1="0%" x2="90%" y2="100%">
       <stop offset="0%" stop-color="#7bf6a6" stop-opacity="0.95" />
       <stop offset="45%" stop-color="#1ed760" stop-opacity="0.35" />
       <stop offset="100%" stop-color="#1ed760" stop-opacity="0.06" />
     </linearGradient>
-
-    <!-- The ring crosses the planet: everything below the planet's middle,
-         in the ring's own tilted frame, is drawn over it. -->
-    <clipPath id="front">
-      <rect x="-40" y="256" width="592" height="336" />
-    </clipPath>
   </defs>
 
   <g transform="translate(256 256) scale(1.22) translate(-256 -256) rotate(-24 256 256)">
     <!-- Behind the planet -->
-    <ellipse cx="256" cy="256" rx="190" ry="62" fill="none"
-             stroke="url(#ring)" stroke-width="30" opacity="0.55" />
+    <g>
+      <rect x="426.80" y="252.00" width="38.40" height="8.00" rx="4.00"
+            transform="rotate(0.00 426.80 256.00)" fill="url(#ring)" opacity="0.55" />
+      <rect x="86.00" y="252.00" width="40.00" height="8.00" rx="4.00"
+            transform="rotate(180.00 86.00 256.00)" fill="url(#ring)" opacity="0.55" />
+      <rect x="84.11" y="251.26" width="36.00" height="8.00" rx="4.00"
+            transform="rotate(-164.99 84.11 255.26)" fill="url(#ring)" opacity="0.55" />
+      <rect x="87.71" y="251.41" width="42.80" height="8.00" rx="4.00"
+            transform="rotate(-151.62 87.71 255.41)" fill="url(#ring)" opacity="0.55" />
+      <rect x="87.62" y="248.39" width="39.20" height="8.00" rx="4.00"
+            transform="rotate(-140.61 87.62 252.39)" fill="url(#ring)" opacity="0.55" />
+      <rect x="90.28" y="245.09" width="38.40" height="8.00" rx="4.00"
+            transform="rotate(-131.88 90.28 249.09)" fill="url(#ring)" opacity="0.55" />
+      <rect x="95.84" y="243.00" width="42.00" height="8.00" rx="4.00"
+            transform="rotate(-124.98 95.84 247.00)" fill="url(#ring)" opacity="0.55" />
+      <rect x="100.56" y="237.11" width="37.00" height="8.00" rx="4.00"
+            transform="rotate(-119.47 100.56 241.11)" fill="url(#ring)" opacity="0.55" />
+      <rect x="109.82" y="236.74" width="44.80" height="8.00" rx="4.00"
+            transform="rotate(-114.99 109.82 240.74)" fill="url(#ring)" opacity="0.55" />
+      <rect x="117.63" y="230.60" width="39.60" height="8.00" rx="4.00"
+            transform="rotate(-111.25 117.63 234.60)" fill="url(#ring)" opacity="0.55" />
+      <rect x="127.17" y="225.08" width="35.60" height="8.00" rx="4.00"
+            transform="rotate(-108.07 127.17 229.08)" fill="url(#ring)" opacity="0.55" />
+      <rect x="139.57" y="225.34" width="43.20" height="8.00" rx="4.00"
+            transform="rotate(-105.31 139.57 229.34)" fill="url(#ring)" opacity="0.55" />
+      <rect x="151.25" y="219.74" width="38.00" height="8.00" rx="4.00"
+            transform="rotate(-102.87 151.25 223.74)" fill="url(#ring)" opacity="0.55" />
+      <rect x="164.78" y="218.35" width="40.80" height="8.00" rx="4.00"
+            transform="rotate(-100.67 164.78 222.35)" fill="url(#ring)" opacity="0.55" />
+      <rect x="178.44" y="213.80" width="36.40" height="8.00" rx="4.00"
+            transform="rotate(-98.65 178.44 217.80)" fill="url(#ring)" opacity="0.55" />
+      <rect x="193.61" y="215.59" width="44.00" height="8.00" rx="4.00"
+            transform="rotate(-96.77 193.61 219.59)" fill="url(#ring)" opacity="0.55" />
+      <rect x="208.51" y="211.44" width="38.80" height="8.00" rx="4.00"
+            transform="rotate(-95.00 208.51 215.44)" fill="url(#ring)" opacity="0.55" />
+      <rect x="224.01" y="208.31" width="34.80" height="8.00" rx="4.00"
+            transform="rotate(-93.29 224.01 212.31)" fill="url(#ring)" opacity="0.55" />
+      <rect x="240.03" y="211.03" width="41.60" height="8.00" rx="4.00"
+            transform="rotate(-91.64 240.03 215.03)" fill="url(#ring)" opacity="0.55" />
+      <rect x="256.00" y="208.80" width="37.60" height="8.00" rx="4.00"
+            transform="rotate(-90.00 256.00 212.80)" fill="url(#ring)" opacity="0.55" />
+      <rect x="271.90" y="213.23" width="46.00" height="8.00" rx="4.00"
+            transform="rotate(-88.36 271.90 217.23)" fill="url(#ring)" opacity="0.55" />
+      <rect x="287.84" y="210.91" width="40.00" height="8.00" rx="4.00"
+            transform="rotate(-86.71 287.84 214.91)" fill="url(#ring)" opacity="0.55" />
+      <rect x="303.61" y="210.04" width="36.00" height="8.00" rx="4.00"
+            transform="rotate(-85.00 303.61 214.04)" fill="url(#ring)" opacity="0.55" />
+      <rect x="318.46" y="214.99" width="42.80" height="8.00" rx="4.00"
+            transform="rotate(-83.23 318.46 218.99)" fill="url(#ring)" opacity="0.55" />
+      <rect x="333.35" y="215.19" width="39.20" height="8.00" rx="4.00"
+            transform="rotate(-81.35 333.35 219.19)" fill="url(#ring)" opacity="0.55" />
+      <rect x="347.45" y="217.17" width="38.40" height="8.00" rx="4.00"
+            transform="rotate(-79.33 347.45 221.17)" fill="url(#ring)" opacity="0.55" />
+      <rect x="360.30" y="221.68" width="42.00" height="8.00" rx="4.00"
+            transform="rotate(-77.13 360.30 225.68)" fill="url(#ring)" opacity="0.55" />
+      <rect x="373.24" y="222.35" width="37.00" height="8.00" rx="4.00"
+            transform="rotate(-74.69 373.24 226.35)" fill="url(#ring)" opacity="0.55" />
+      <rect x="383.40" y="229.45" width="44.80" height="8.00" rx="4.00"
+            transform="rotate(-71.93 383.40 233.45)" fill="url(#ring)" opacity="0.55" />
+      <rect x="394.37" y="230.60" width="39.60" height="8.00" rx="4.00"
+            transform="rotate(-68.75 394.37 234.60)" fill="url(#ring)" opacity="0.55" />
+      <rect x="404.12" y="232.57" width="35.60" height="8.00" rx="4.00"
+            transform="rotate(-65.01 404.12 236.57)" fill="url(#ring)" opacity="0.55" />
+      <rect x="409.92" y="239.80" width="43.20" height="8.00" rx="4.00"
+            transform="rotate(-60.53 409.92 243.80)" fill="url(#ring)" opacity="0.55" />
+      <rect x="417.30" y="241.36" width="38.00" height="8.00" rx="4.00"
+            transform="rotate(-55.02 417.30 245.36)" fill="url(#ring)" opacity="0.55" />
+      <rect x="420.92" y="245.98" width="40.80" height="8.00" rx="4.00"
+            transform="rotate(-48.12 420.92 249.98)" fill="url(#ring)" opacity="0.55" />
+      <rect x="425.46" y="247.50" width="36.40" height="8.00" rx="4.00"
+            transform="rotate(-39.39 425.46 251.50)" fill="url(#ring)" opacity="0.55" />
+      <rect x="423.76" y="251.69" width="44.00" height="8.00" rx="4.00"
+            transform="rotate(-28.38 423.76 255.69)" fill="url(#ring)" opacity="0.55" />
+      <rect x="426.54" y="251.62" width="38.80" height="8.00" rx="4.00"
+            transform="rotate(-15.01 426.54 255.62)" fill="url(#ring)" opacity="0.55" />
+    </g>
 
-    <circle cx="256" cy="256" r="140" fill="url(#planet)" />
-    <circle cx="256" cy="256" r="140" fill="url(#lit)" />
-    <circle cx="256" cy="256" r="138" fill="none"
-            stroke="url(#edge)" stroke-width="5" />
+    <circle cx="256" cy="256" r="140.0" fill="url(#planet)" />
+    <circle cx="256" cy="256" r="140.0" fill="url(#lit)" />
+    <circle cx="256" cy="256" r="138.0" fill="none" stroke="url(#edge)" stroke-width="5" />
+
+    <!-- Sound on the planet's face, held upright while the ring stays tilted. -->
+    <g transform="rotate(24 256 256)" fill="none" stroke="#1ed760"
+       stroke-linecap="round" opacity="0.95">
+      <path d="M204 226q52 -27 104 0" stroke-width="17" />
+      <path d="M215 259q41 -22 82 0" stroke-width="14.5" />
+      <path d="M226 290q30 -16 60 0" stroke-width="12" />
+    </g>
 
     <!-- In front of it -->
-    <g clip-path="url(#front)">
-      <ellipse cx="256" cy="256" rx="190" ry="62" fill="none"
-               stroke="url(#ring)" stroke-width="30" />
-      <ellipse cx="256" cy="256" rx="190" ry="62" fill="none"
-               stroke="#071009" stroke-width="2" opacity="0.55" />
-      <ellipse cx="256" cy="256" rx="181" ry="54" fill="none"
-               stroke="#071009" stroke-width="2" opacity="0.4" />
+    <g>
+      <rect x="424.99" y="251.97" width="42.00" height="8.00" rx="4.00"
+            transform="rotate(15.01 424.99 255.97)" fill="url(#ring)" />
+      <rect x="426.84" y="253.97" width="37.00" height="8.00" rx="4.00"
+            transform="rotate(28.38 426.84 257.97)" fill="url(#ring)" />
+      <rect x="422.21" y="253.83" width="44.80" height="8.00" rx="4.00"
+            transform="rotate(39.39 422.21 257.83)" fill="url(#ring)" />
+      <rect x="421.32" y="258.46" width="39.60" height="8.00" rx="4.00"
+            transform="rotate(48.12 421.32 262.46)" fill="url(#ring)" />
+      <rect x="417.99" y="263.62" width="35.60" height="8.00" rx="4.00"
+            transform="rotate(55.02 417.99 267.62)" fill="url(#ring)" />
+      <rect x="409.92" y="264.20" width="43.20" height="8.00" rx="4.00"
+            transform="rotate(60.53 409.92 268.20)" fill="url(#ring)" />
+      <rect x="403.61" y="270.34" width="38.00" height="8.00" rx="4.00"
+            transform="rotate(65.01 403.61 274.34)" fill="url(#ring)" />
+      <rect x="394.15" y="272.84" width="40.80" height="8.00" rx="4.00"
+            transform="rotate(68.75 394.15 276.84)" fill="url(#ring)" />
+      <rect x="384.70" y="278.54" width="36.40" height="8.00" rx="4.00"
+            transform="rotate(71.93 384.70 282.54)" fill="url(#ring)" />
+      <rect x="372.32" y="278.28" width="44.00" height="8.00" rx="4.00"
+            transform="rotate(74.69 372.32 282.28)" fill="url(#ring)" />
+      <rect x="360.66" y="283.87" width="38.80" height="8.00" rx="4.00"
+            transform="rotate(77.13 360.66 287.87)" fill="url(#ring)" />
+      <rect x="347.78" y="288.59" width="34.80" height="8.00" rx="4.00"
+            transform="rotate(79.33 347.78 292.59)" fill="url(#ring)" />
+      <rect x="333.17" y="287.63" width="41.60" height="8.00" rx="4.00"
+            transform="rotate(81.35 333.17 291.63)" fill="url(#ring)" />
+      <rect x="318.77" y="291.59" width="37.60" height="8.00" rx="4.00"
+            transform="rotate(83.23 318.77 295.59)" fill="url(#ring)" />
+      <rect x="303.17" y="288.97" width="46.00" height="8.00" rx="4.00"
+            transform="rotate(85.00 303.17 292.97)" fill="url(#ring)" />
+      <rect x="287.84" y="293.09" width="40.00" height="8.00" rx="4.00"
+            transform="rotate(86.71 287.84 297.09)" fill="url(#ring)" />
+      <rect x="272.05" y="295.77" width="36.00" height="8.00" rx="4.00"
+            transform="rotate(88.36 272.05 299.77)" fill="url(#ring)" />
+      <rect x="256.00" y="292.60" width="42.80" height="8.00" rx="4.00"
+            transform="rotate(90.00 256.00 296.60)" fill="url(#ring)" />
+      <rect x="240.00" y="294.17" width="39.20" height="8.00" rx="4.00"
+            transform="rotate(91.64 240.00 298.17)" fill="url(#ring)" />
+      <rect x="224.11" y="293.89" width="38.40" height="8.00" rx="4.00"
+            transform="rotate(93.29 224.11 297.89)" fill="url(#ring)" />
+      <rect x="208.65" y="290.97" width="42.00" height="8.00" rx="4.00"
+            transform="rotate(95.00 208.65 294.97)" fill="url(#ring)" />
+      <rect x="193.20" y="291.89" width="37.00" height="8.00" rx="4.00"
+            transform="rotate(96.77 193.20 295.89)" fill="url(#ring)" />
+      <rect x="179.07" y="286.05" width="44.80" height="8.00" rx="4.00"
+            transform="rotate(98.65 179.07 290.05)" fill="url(#ring)" />
+      <rect x="164.67" y="286.24" width="39.60" height="8.00" rx="4.00"
+            transform="rotate(100.67 164.67 290.24)" fill="url(#ring)" />
+      <rect x="150.99" y="285.43" width="35.60" height="8.00" rx="4.00"
+            transform="rotate(102.87 150.99 289.43)" fill="url(#ring)" />
+      <rect x="139.57" y="278.66" width="43.20" height="8.00" rx="4.00"
+            transform="rotate(105.31 139.57 282.66)" fill="url(#ring)" />
+      <rect x="127.54" y="277.78" width="38.00" height="8.00" rx="4.00"
+            transform="rotate(108.07 127.54 281.78)" fill="url(#ring)" />
+      <rect x="117.85" y="272.84" width="40.80" height="8.00" rx="4.00"
+            transform="rotate(111.25 117.85 276.84)" fill="url(#ring)" />
+      <rect x="108.05" y="271.07" width="36.40" height="8.00" rx="4.00"
+            transform="rotate(114.99 108.05 275.07)" fill="url(#ring)" />
+      <rect x="102.28" y="263.85" width="44.00" height="8.00" rx="4.00"
+            transform="rotate(119.47 102.28 267.85)" fill="url(#ring)" />
+      <rect x="94.92" y="262.31" width="38.80" height="8.00" rx="4.00"
+            transform="rotate(124.98 94.92 266.31)" fill="url(#ring)" />
+      <rect x="89.07" y="260.25" width="34.80" height="8.00" rx="4.00"
+            transform="rotate(131.88 89.07 264.25)" fill="url(#ring)" />
+      <rect x="88.55" y="254.85" width="41.60" height="8.00" rx="4.00"
+            transform="rotate(140.61 88.55 258.85)" fill="url(#ring)" />
+      <rect x="85.43" y="253.83" width="37.60" height="8.00" rx="4.00"
+            transform="rotate(151.62 85.43 257.83)" fill="url(#ring)" />
+      <rect x="88.94" y="251.45" width="46.00" height="8.00" rx="4.00"
+            transform="rotate(164.99 88.94 255.45)" fill="url(#ring)" />
     </g>
   </g>
 
-  <!-- A little sky, kept away from the edges so a circular mask cannot
-       clip a star in half. -->
+  <!-- A little sky, clear of the edges so a circular mask cannot halve a star. -->
   <circle cx="60" cy="74" r="7" fill="#eaf6ef" opacity="0.9" />
   <circle cx="452" cy="92" r="4.5" fill="#eaf6ef" opacity="0.65" />
   <circle cx="446" cy="428" r="6" fill="#eaf6ef" opacity="0.75" />

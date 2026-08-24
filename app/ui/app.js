@@ -586,6 +586,15 @@ function highlightLyrics() {
  *  show, and the only one expanded by default in Settings. */
 const CHANGELOG = [
   {
+    v: "1.1.0",
+    d: "24 Aug 2026",
+    notes: [
+      "A visualiser, beside the miniplayer and full screen: bars, mirrored, radial or a wave, in theme, spectrum or mono colour, over the artwork or a glow",
+      "It is drawn from the audio itself. The player runs the analysis at the same point the equaliser sits, and only while a visualiser is open",
+      "A new logo: the ring is a bar visualiser now, and the planet wears the sound",
+    ],
+  },
+  {
     v: "1.0.0",
     d: "24 Aug 2026",
     notes: [
@@ -1550,6 +1559,19 @@ async function renderHub(content, tab) {
     <div class="ext-card">
       <div class="ext-head">
         <div>
+          <b>Visualiser</b>
+          <p>A view of what is playing, drawn from the audio itself — bars,
+             mirrored, radial or a wave, over the artwork. It sits next to the
+             miniplayer and full screen in the player bar. Levels are analysed
+             only while it is open.</p>
+        </div>
+        <button class="pill" id="ext-viz">Open</button>
+      </div>
+    </div>
+
+    <div class="ext-card">
+      <div class="ext-head">
+        <div>
           <b>Equaliser</b>
           <p>Five bands, applied between the decoder and your speakers.
              Changes are heard immediately. Spotify's own desktop client has
@@ -1567,6 +1589,8 @@ async function renderHub(content, tab) {
         <div class="eq-bands">${eqSliders(gains)}</div>
       </div>
     </div>`;
+
+  body.querySelector("#ext-viz").onclick = () => setVisualiser(true);
 
   // Both toggles write straight through: a switch that needs a save button
   // is a switch people leave in the wrong position.
@@ -3366,6 +3390,7 @@ const eventsReady = listen("daemon-event", ({ payload }) => {
       state = ev;
       renderNowPlaying();
       paintFullscreen();
+      if (typeof vizPaintChrome === "function") vizPaintChrome();
       if (state.auth?.loggedIn !== wasLoggedIn) {
         renderLibrary();
         render();
@@ -3380,6 +3405,10 @@ const eventsReady = listen("daemon-event", ({ payload }) => {
       updateProgress();
       highlightLyrics();
       $("#btn-play").innerHTML = icon(ev.playing ? "pause" : "play");
+      break;
+    case "spectrum":
+      // The visualiser owns these; nothing else has a use for them.
+      if (typeof vizFeed === "function") vizFeed(ev.bands);
       break;
     case "volume":
       if (state) state.volume = ev.volume;

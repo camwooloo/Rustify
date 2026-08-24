@@ -210,6 +210,9 @@ pub enum Command {
     /// Start a radio station seeded from a track, artist or album.
     #[serde(rename_all = "camelCase")]
     StartRadio { seed_uri: String },
+    /// Ask for spectrum frames, or stop asking. Repeat while watching: the
+    /// daemon stops on its own if a window goes away without saying so.
+    WatchSpectrum { on: bool },
     /// The listener's most-played tracks.
     #[serde(rename_all = "camelCase")]
     GetTopTracks {
@@ -311,6 +314,9 @@ pub enum Event {
     AuthChanged(Box<AuthState>),
     Devices { items: Vec<Device> },
     Jam(Box<JamState>),
+    /// Levels for the visualiser, one byte per band. Only sent while a
+    /// window has asked for them.
+    Spectrum { bands: Vec<u8> },
     /// Non-fatal problem worth surfacing in the UI.
     Notice { message: String, severity: Severity },
 }

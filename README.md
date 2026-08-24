@@ -86,6 +86,21 @@ account.
   default.
 - **Equaliser** — five bands, applied between the decoder and your speakers,
   heard immediately. Spotify's own desktop client doesn't have one at all.
+- **Visualiser** — drawn from the audio itself, not faked from the beat.
+
+### Visualiser
+
+<img src="assets/screenshots/visualiser.png" width="820" alt="The radial visualiser">
+
+Bars, mirrored, radial or a wave; theme, spectrum or mono colour; over the
+artwork, a solid ground or a glow. It sits beside the miniplayer and full
+screen in the player bar.
+
+The levels are real: the daemon runs an FFT at the same point the equaliser
+sits — the one place every decoded sample passes through — and sends bands to
+the window about thirty times a second. Nothing is analysed unless a
+visualiser is open, and the request expires, so a window that dies does not
+leave an FFT running.
 
 ### Themes
 

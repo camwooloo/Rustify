@@ -61,6 +61,8 @@ pub struct Engine {
     /// Shared with the sink, so a change of gains is heard immediately
     /// rather than at the next session.
     equaliser: crate::eq::SharedEq,
+    /// Levels for the visualiser, analysed only while one is open.
+    spectrum: crate::spectrum::Spectrum,
 }
 
 /// Create an unconnected session.
@@ -112,6 +114,11 @@ impl Engine {
         let equaliser = crate::eq::shared();
         let eq_for_sink = equaliser.clone();
 
+        // The same tap serves the visualiser: it is the only place every
+        // decoded sample passes through code this crate owns.
+        let spectrum = crate::spectrum::Spectrum::new();
+        let spectrum_for_sink = spectrum.clone();
+
         let player = Player::new(
             player_config,
             session.clone(),
@@ -120,6 +127,7 @@ impl Engine {
                 Box::new(EqualisedSink {
                     inner: backend(None, librespot_playback::config::AudioFormat::default()),
                     equaliser: crate::eq::Equaliser::new(eq_for_sink.clone(), 2),
+                    spectrum: spectrum_for_sink.clone(),
                 })
             },
         );
@@ -166,6 +174,7 @@ impl Engine {
             events,
             config,
             equaliser,
+            spectrum,
         });
 
         tokio::spawn(pump_player_events(
@@ -284,6 +293,16 @@ impl Engine {
     /// Set the equaliser. Takes effect mid-track.
     pub fn set_equaliser(&self, enabled: bool, gains: &[f32]) {
         crate::eq::set(&self.equaliser, enabled, gains);
+    }
+
+    /// Start or stop analysing audio for a visualiser.
+    pub fn watch_spectrum(&self, on: bool) {
+        self.spectrum.watch(on);
+    }
+
+    /// The current levels, one per band.
+    pub fn spectrum(&self) -> Vec<u8> {
+        self.spectrum.bands()
     }
 
     /// Become the active Connect device.
@@ -462,6 +481,7 @@ async fn pump_player_events(
 struct EqualisedSink {
     inner: Box<dyn Sink>,
     equaliser: crate::eq::Equaliser,
+    spectrum: crate::spectrum::Spectrum,
 }
 
 impl Sink for EqualisedSink {
@@ -479,6 +499,9 @@ impl Sink for EqualisedSink {
         let packet = match packet {
             AudioPacket::Samples(mut samples) => {
                 self.equaliser.process(&mut samples);
+                // After the equaliser, so the bars show what is actually
+                // leaving rather than what arrived.
+                self.spectrum.feed(&samples);
                 AudioPacket::Samples(samples)
             }
             raw => raw,

@@ -2060,3 +2060,149 @@ body.fs #player { background: transparent; }
   box-shadow: inset 0 2px 0 var(--accent);
   background: var(--row-hover);
 }
+
+/* ----------------------------------------------------- visualiser */
+
+/* Like full screen, the interface steps aside and the player bar stays —
+   the controls are already there and already work. */
+body.viz #titlebar,
+body.viz #sidebar,
+body.viz #rail { display: none; }
+
+body.viz #shell { padding: 0; grid-template-columns: minmax(0, 1fr); }
+body.viz #main { border-radius: 0; background: transparent; }
+body.viz .content { display: none; }
+body.viz #player { background: rgba(0, 0, 0, 0.55); }
+
+#visualiser {
+  position: fixed;
+  inset: 0 0 var(--bar-h) 0;
+  z-index: 40;
+  overflow: hidden;
+  background: var(--bg-0);
+}
+
+/* The artwork behind it, blurred far enough that the bars stay readable
+   over any album cover. */
+#visualiser[data-backdrop="artwork"]::before {
+  content: "";
+  position: absolute;
+  inset: -12%;
+  background: var(--viz-art) center / cover no-repeat;
+  filter: blur(56px) saturate(1.5) brightness(0.55);
+  transform: scale(1.1);
+}
+
+#visualiser[data-backdrop="glow"]::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(60% 60% at 50% 100%, rgba(var(--accent-rgb), 0.32), transparent 70%),
+    var(--bg-0);
+}
+
+#viz-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.viz-chrome {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  display: flex;
+  gap: 8px;
+  opacity: 0;
+  transition: opacity 0.18s var(--ease);
+}
+
+/* Out of the way until the pointer says otherwise. */
+#visualiser:hover .viz-chrome { opacity: 1; }
+
+.viz-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.viz-btn:hover { background: rgba(0, 0, 0, 0.75); }
+.viz-btn svg { width: 15px; height: 15px; fill: currentColor; }
+
+.viz-panel {
+  position: absolute;
+  top: 58px;
+  right: 14px;
+  width: 300px;
+  padding: 16px;
+  border-radius: var(--radius);
+  background: var(--menu);
+  box-shadow: 0 16px 24px rgba(0, 0, 0, 0.35);
+}
+
+.viz-group { margin-bottom: 14px; }
+.viz-group:last-child { margin-bottom: 0; }
+
+.viz-group > span {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-mute);
+  margin-bottom: 7px;
+}
+
+.viz-group .lib-filters { padding: 0; flex-wrap: wrap; gap: 6px; }
+.viz-group .chip { font-size: 11.5px; padding: 4px 10px; }
+.viz-group input[type="range"] { width: 100%; }
+
+.viz-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--text-dim);
+}
+
+.viz-track {
+  position: absolute;
+  left: 22px;
+  bottom: 22px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.viz-track img,
+.viz-track .thumb {
+  width: 64px;
+  height: 64px;
+  border-radius: var(--radius-sm);
+  object-fit: cover;
+  background: var(--hover);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+}
+
+.viz-track .name { font-size: 18px; font-weight: 800; letter-spacing: -0.01em; }
+.viz-track .artist { color: var(--text-dim); font-size: 13px; }
+
+/* Said plainly rather than drawn as a flat line: there is no local audio to
+   analyse while another device is playing. */
+.viz-remote {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  max-width: 46ch;
+  text-align: center;
+  color: var(--text-dim);
+  font-size: 14px;
+  line-height: 1.6;
+}

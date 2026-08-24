@@ -6,6 +6,7 @@ rust-version.workspace = true
 license.workspace = true
 
 [dependencies]
+rustfft = "6"
 spotify-proto.workspace = true
 
 librespot-core.workspace = true
