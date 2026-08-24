@@ -586,6 +586,16 @@ function highlightLyrics() {
  *  show, and the only one expanded by default in Settings. */
 const CHANGELOG = [
   {
+    v: "1.2.0",
+    d: "24 Aug 2026",
+    notes: [
+      "Layouts: themes now come in two kinds. A layout rearranges the interface, a colour scheme repaints it, and any layout wears any scheme",
+      "New Look, after the Spotify Redesign concept — flat sidebar, segmented tabs, capped cards and a floating bar with the transport on the left",
+      "Compact, for smaller screens: the same arrangement with the air taken out",
+      "A Check for updates button in Settings, for when waiting a couple of hours will not do",
+    ],
+  },
+  {
     v: "1.1.0",
     d: "24 Aug 2026",
     notes: [
@@ -1074,6 +1084,11 @@ async function renderSettings(content) {
       )}
 
       <div class="set-group">What's new</div>
+      ${setRow(
+        "Updates",
+        `Rustify checks every couple of hours on its own. This asks now.`,
+        `<button class="pill" id="set-check-update">Check for updates</button>`
+      )}
       ${changelogHtml()}
 
       <div class="set-group">About</div>
@@ -1131,6 +1146,26 @@ async function renderSettings(content) {
   };
 
   content.querySelector("#set-themes").onclick = () => navigate("hub", "themes");
+
+  content.querySelector("#set-check-update").onclick = async (e) => {
+    const button = e.currentTarget;
+    button.disabled = true;
+    button.textContent = "Checking…";
+    try {
+      const info = await invoke("check_update");
+      if (info) {
+        showUpdateBar(info);
+        toast(`Version ${info.version} is available`);
+      } else {
+        toast("Rustify is up to date");
+      }
+    } catch (err) {
+      toast(`Could not check: ${String(err)}`, "error");
+    } finally {
+      button.disabled = false;
+      button.textContent = "Check for updates";
+    }
+  };
 
   content.querySelector("#set-site").onclick = () =>
     call({ cmd: "openExternal", url: "https://camwooloo.com" });
@@ -1438,6 +1473,71 @@ async function renderStats(content) {
   });
 }
 
+/* The layouts on offer, each with a wireframe rather than a screenshot: a
+ * drawing stays honest when the app changes, and costs nothing to ship. */
+const LAYOUTS = [
+  {
+    id: "spotify",
+    name: "Spotify",
+    note: "The default. Panels on a black shell, controls centred.",
+    wire: (c) => `
+      <rect x="2" y="2" width="30" height="42" rx="3" fill="${c.panel}" />
+      <rect x="35" y="2" width="63" height="42" rx="3" fill="${c.panel}" />
+      <rect x="8" y="49" width="12" height="3" rx="1.5" fill="${c.dim}" />
+      <circle cx="50" cy="50.5" r="3.2" fill="${c.accent}" />
+      <rect x="57" y="49.5" width="20" height="2" rx="1" fill="${c.dim}" />`,
+  },
+  {
+    id: "newlook",
+    name: "New Look",
+    note: "After the Spotify Redesign concept: flat sidebar, segmented tabs, and a floating bar with the transport on the left.",
+    wire: (c) => `
+      <rect x="2" y="2" width="28" height="42" rx="3" fill="none" />
+      <rect x="5" y="6" width="18" height="2.5" rx="1.25" fill="${c.dim}" />
+      <rect x="5" y="12" width="22" height="2.5" rx="1.25" fill="${c.dim}" />
+      <rect x="5" y="18" width="20" height="2.5" rx="1.25" fill="${c.dim}" />
+      <rect x="33" y="2" width="65" height="42" rx="4" fill="${c.panel}" />
+      <rect x="2" y="47" width="96" height="9" rx="4" fill="${c.panel}" />
+      <circle cx="9" cy="51.5" r="3.2" fill="${c.accent}" />
+      <rect x="15" y="50.5" width="22" height="2" rx="1" fill="${c.dim}" />
+      <rect x="48" y="49" width="14" height="4" rx="1.5" fill="${c.dim}" />`,
+  },
+  {
+    id: "compact",
+    name: "Compact",
+    note: "The same arrangement, tightened. More on screen, for smaller displays.",
+    wire: (c) => `
+      <rect x="2" y="2" width="24" height="44" rx="2" fill="${c.panel}" />
+      <rect x="28" y="2" width="70" height="44" rx="2" fill="${c.panel}" />
+      ${[6, 12, 18, 24, 30, 36]
+        .map((y) => `<rect x="32" y="${y}" width="60" height="2" rx="1" fill="${c.dim}" />`)
+        .join("")}
+      <circle cx="50" cy="51" r="2.6" fill="${c.accent}" />
+      <rect x="56" y="50" width="18" height="2" rx="1" fill="${c.dim}" />`,
+  },
+];
+
+/** One layout, drawn in the colours currently in use. */
+function layoutCard(layout) {
+  const root = getComputedStyle(document.documentElement);
+  const colours = {
+    panel: root.getPropertyValue("--surface").trim() || "#121212",
+    dim: root.getPropertyValue("--text-mute").trim() || "#7c7c7c",
+    accent: root.getPropertyValue("--accent").trim() || "#1ed760",
+  };
+  const active = savedLayout() === layout.id;
+
+  return `
+    <button class="layout-card${active ? " on" : ""}" data-layout-pick="${layout.id}">
+      <svg class="layout-wire" viewBox="0 0 100 58" aria-hidden="true">
+        <rect x="0" y="0" width="100" height="58" rx="4" fill="var(--bg-0)" />
+        ${layout.wire(colours)}
+      </svg>
+      <span class="layout-name">${esc(layout.name)}</span>
+      <span class="layout-note">${esc(layout.note)}</span>
+    </button>`;
+}
+
 /* -------------------------------------------------------------- hub */
 
 /* Extensions and themes, in one place reached from the top bar.
@@ -1517,15 +1617,34 @@ async function renderHub(content, tab) {
 
   if (hubTab === "themes") {
     body.innerHTML = `
+      <h2 class="section-title">Layout</h2>
+      <p class="set-note hub-note">
+        How the interface is arranged. One is always in use, and it is
+        independent of colour: any layout wears any scheme.
+      </p>
+      <div class="layout-grid">${LAYOUTS.map(layoutCard).join("")}</div>
+
+      <h2 class="section-title">Colours</h2>
       <p class="set-note hub-note">
         Colour schemes in Spicetify's format, from any Spicetify install on
-        this computer and from the community collection. Only the colours are
-        read — never anyone's code.
+        this computer and from the community collection. These repaint the
+        interface; they never move anything. Only the colours are read —
+        never anyone's code.
       </p>
       <div class="theme-bar">
         <div class="control"><button class="pill" id="theme-refresh">Refresh</button></div>
       </div>
       <div class="theme-grid" id="theme-grid"></div>`;
+
+    body.querySelectorAll("[data-layout-pick]").forEach((card) => {
+      card.onclick = () => {
+        applyLayout(card.dataset.layoutPick);
+        body
+          .querySelectorAll("[data-layout-pick]")
+          .forEach((o) => o.classList.toggle("on", o === card));
+        toast(LAYOUTS.find((l) => l.id === card.dataset.layoutPick)?.name || "Layout changed");
+      };
+    });
 
     const grid = body.querySelector("#theme-grid");
     renderThemes(grid, false);

@@ -104,7 +104,20 @@ leave an FFT running.
 
 ### Themes
 
-Colour schemes in [Spicetify's](https://github.com/spicetify/spicetify-themes)
+Two independent axes: a **layout** rearranges, a **colour scheme** repaints.
+Any layout wears any scheme.
+
+<img src="assets/screenshots/layouts.png" width="820" alt="The layout and colour pickers">
+
+**Layouts** ship with the app — *Spotify* (the default), *New Look* and
+*Compact*. New Look is after the [Spotify Redesign community
+concept](https://www.figma.com/community/file/1376999463181735262/spotify-redesign):
+a flat sidebar, segmented tabs, capped cards, and a floating player bar with
+the transport on the left.
+
+<img src="assets/screenshots/layout-newlook.png" width="820" alt="Rustify wearing the New Look layout">
+
+**Colour schemes** are in [Spicetify's](https://github.com/spicetify/spicetify-themes)
 format — read from any Spicetify install on your machine and from the
 community collection. Only the colours are read; never anyone's code.
 

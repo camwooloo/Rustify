@@ -2206,3 +2206,45 @@ body.viz #player { background: rgba(0, 0, 0, 0.55); }
   font-size: 14px;
   line-height: 1.6;
 }
+
+/* ---------------------------------------------------- layout picker */
+
+.layout-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 12px;
+  margin-bottom: 28px;
+}
+
+.layout-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px;
+  border-radius: var(--radius);
+  background: var(--card);
+  border: 2px solid transparent;
+  text-align: left;
+  transition: 0.16s var(--ease);
+}
+
+.layout-card:hover { background: var(--card-hi); }
+.layout-card.on { border-color: var(--accent); }
+
+/* Drawn rather than photographed: a wireframe cannot go stale. */
+.layout-wire {
+  width: 100%;
+  height: auto;
+  border-radius: var(--radius-sm);
+  margin-bottom: 6px;
+  display: block;
+}
+
+.layout-name { font-weight: 700; font-size: 13.5px; }
+.layout-card.on .layout-name { color: var(--accent); }
+
+.layout-note {
+  color: var(--text-mute);
+  font-size: 12px;
+  line-height: 1.5;
+}

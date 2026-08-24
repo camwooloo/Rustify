@@ -1,0 +1,368 @@
+/* Layouts: the other half of theming.
+ *
+ * A colour scheme repaints; a layout rearranges. They are separate axes and
+ * combine freely, which is only true because nothing in this file sets a
+ * colour. Every rule here reaches for the same variables the base does, so
+ * Dracula plus New Look is Dracula, rearranged.
+ *
+ * Everything is scoped to an attribute on <body>, so switching is one
+ * assignment with no reload and no flash. Layouts ship with the app rather
+ * than being downloaded: CSS from a stranger can still phone home through a
+ * background image, and a layout written against markup we later change
+ * mangles the app rather than failing cleanly.
+ */
+
+/* ==================================================== New Look =========
+   After the Spotify Redesign community concept
+   (figma.com/design/A2qFviDaFHdVyk78n7lChx).
+
+   The structural moves of that design, applied to the pages this app
+   actually has: segmented tabs in the top bar, a flat sidebar with the panel
+   treatment moved to the main area, flat cards with a coloured cap, and a
+   floating player bar with the transport on the left. */
+
+body[data-layout="newlook"] {
+  --radius: 16px;
+  --radius-sm: 12px;
+  --titlebar-h: 52px;
+  --bar-h: 76px;
+}
+
+/* ---------------------------------------------------------- top bar */
+
+body[data-layout="newlook"] #titlebar { padding: 0 12px 0 18px; }
+body[data-layout="newlook"] .tb-center { gap: 6px; }
+
+body[data-layout="newlook"] .home-btn,
+body[data-layout="newlook"] .search-box {
+  height: 40px;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  background: transparent;
+}
+
+/* Home becomes a labelled tab rather than a circular button. */
+body[data-layout="newlook"] .home-btn {
+  width: auto;
+  min-width: 148px;
+  gap: 10px;
+  padding: 0 18px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  color: var(--text-dim);
+  font-weight: 700;
+  font-size: 14px;
+}
+
+body[data-layout="newlook"] .home-btn::after {
+  content: "Home";
+  white-space: nowrap;
+}
+
+body[data-layout="newlook"] .home-btn.on {
+  background: var(--surface);
+  color: var(--text);
+}
+
+body[data-layout="newlook"] .home-btn:hover {
+  transform: none;
+  background: var(--hover);
+}
+
+body[data-layout="newlook"] .search-box {
+  width: 264px;
+  padding: 0 16px;
+  gap: 12px;
+}
+
+body[data-layout="newlook"] .search-box:focus-within {
+  background: var(--surface);
+  border-color: var(--stroke-2);
+}
+
+body[data-layout="newlook"] .search-box .divider,
+body[data-layout="newlook"] .search-box .browse-btn { display: none; }
+
+/* ------------------------------------------------------------ shell */
+
+body[data-layout="newlook"] #shell { gap: 0; padding: 0 10px 10px; }
+
+/* The sidebar is flat here; the raised surface belongs to the main area. */
+body[data-layout="newlook"] #sidebar .panel,
+body[data-layout="newlook"] #sidebar .library {
+  background: transparent;
+}
+
+body[data-layout="newlook"] .library-head {
+  padding: 4px 18px 14px;
+  color: var(--text);
+  font-weight: 700;
+  font-size: 15px;
+}
+
+body[data-layout="newlook"] .lib-filters { padding: 0 14px 14px; }
+
+body[data-layout="newlook"] #sidebar .chip {
+  background: transparent;
+  border: 1px solid var(--stroke-2);
+  color: var(--text-dim);
+}
+
+body[data-layout="newlook"] #sidebar .chip.active {
+  background: var(--surface);
+  color: var(--text);
+}
+
+body[data-layout="newlook"] .library-row {
+  padding: 9px 12px;
+  border-radius: 10px;
+}
+
+body[data-layout="newlook"] .library-row img,
+body[data-layout="newlook"] .library-row .thumb {
+  width: 38px;
+  height: 38px;
+  border-radius: 8px;
+}
+
+body[data-layout="newlook"] .library-row .title { font-weight: 500; font-size: 14px; }
+
+body[data-layout="newlook"] #main,
+body[data-layout="newlook"] #rail {
+  background: var(--surface);
+  border-radius: var(--radius);
+}
+
+body[data-layout="newlook"] #rail { margin-left: 10px; }
+body[data-layout="newlook"] .topbar { display: none; }
+body[data-layout="newlook"] .content { padding: 20px 26px 28px; }
+
+/* ---------------------------------------------------------- shelves */
+
+body[data-layout="newlook"] .greeting {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  margin: 4px 0 18px;
+}
+
+body[data-layout="newlook"] .shelf-head { align-items: center; margin: 30px 0 14px; }
+
+body[data-layout="newlook"] .shelf-head h2 {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+}
+
+/* The paging arrows and overflow dots the design ends each shelf with. */
+body[data-layout="newlook"] .shelf-head::after {
+  content: "← → ⋯";
+  margin-left: auto;
+  color: var(--text-dim);
+  font-size: 15px;
+  letter-spacing: 6px;
+}
+
+body[data-layout="newlook"] .show-all { order: -1; }
+
+/* ------------------------------------------------------------ cards */
+
+body[data-layout="newlook"] .grid {
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 14px;
+}
+
+/* Flat: artwork with a coloured cap, then text beneath it. */
+body[data-layout="newlook"] .card {
+  background: transparent;
+  padding: 0;
+  border-radius: 0;
+  overflow: visible;
+}
+
+body[data-layout="newlook"] .card:hover { background: transparent; }
+
+body[data-layout="newlook"] .card img,
+body[data-layout="newlook"] .card .thumb {
+  border-radius: 4px 4px 2px 2px;
+  margin-bottom: 10px;
+  box-shadow: none;
+  border-top: 4px solid hsl(var(--wash-h, 145) 70% 55%);
+}
+
+body[data-layout="newlook"] .card.round img,
+body[data-layout="newlook"] .card.round .thumb {
+  border-radius: 50%;
+  border-top: 0;
+}
+
+body[data-layout="newlook"] .card .title {
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 4px;
+}
+
+body[data-layout="newlook"] .card .sub { font-size: 12px; line-height: 1.45; }
+
+body[data-layout="newlook"] .card .play {
+  top: auto;
+  bottom: 64px;
+  right: 10px;
+  width: 40px;
+  height: 40px;
+}
+
+body[data-layout="newlook"] .quick { border-radius: 6px; }
+
+/* -------------------------------------------------- now playing bar */
+
+/* Inset and floating, with the transport on the left, the track in the
+   middle and the actions on the right. */
+body[data-layout="newlook"] #player {
+  margin: 0 10px 10px;
+  padding: 0 18px;
+  background: var(--surface);
+  border-radius: var(--radius);
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr) auto;
+  gap: 22px;
+}
+
+body[data-layout="newlook"] .controls {
+  order: 1;
+  flex-direction: row;
+  align-items: center;
+  gap: 14px;
+}
+
+body[data-layout="newlook"] .np { order: 2; }
+body[data-layout="newlook"] .right-controls { order: 3; }
+body[data-layout="newlook"] .control-row { gap: 14px; }
+
+body[data-layout="newlook"] .ctl-play {
+  width: 38px;
+  height: 38px;
+  background: var(--accent);
+  order: -1;
+}
+
+body[data-layout="newlook"] .ctl-play:hover { background: var(--accent-hi); }
+body[data-layout="newlook"] .ctl-play svg { fill: var(--on-accent); }
+body[data-layout="newlook"] .progress-row { max-width: none; flex: 1; }
+
+body[data-layout="newlook"] .np img,
+body[data-layout="newlook"] .np .thumb {
+  width: 44px;
+  height: 44px;
+  border-radius: 6px;
+}
+
+/* ----------------------------------------------------------- detail */
+
+/* The redesign puts the artwork on the right of a playlist header. */
+body[data-layout="newlook"] .detail-wrap {
+  margin: 0;
+  padding: 0;
+  background: linear-gradient(
+    180deg,
+    hsl(var(--wash-h, 145) 30% 22%) 0%,
+    transparent 100%
+  );
+}
+
+body[data-layout="newlook"] .detail-head {
+  flex-direction: row-reverse;
+  align-items: flex-start;
+  gap: 28px;
+  padding: 22px 0 12px;
+}
+
+body[data-layout="newlook"] .detail-head h1 {
+  font-size: clamp(26px, 3.4vw, 44px);
+  font-weight: 800;
+}
+
+body[data-layout="newlook"] .detail-head img,
+body[data-layout="newlook"] .detail-head .thumb {
+  width: 148px;
+  height: 148px;
+  border-radius: var(--radius-sm);
+}
+
+/* Pages that did not exist when this design was drawn keep the base
+   treatment, which is what the raised main panel is already giving them. */
+
+/* ==================================================== Compact ==========
+   The same arrangement, tightened. For laptops, where the base layout spends
+   a lot of height on air. */
+
+body[data-layout="compact"] {
+  --radius: 6px;
+  --radius-sm: 4px;
+  --titlebar-h: 46px;
+  --bar-h: 64px;
+}
+
+body[data-layout="compact"] #shell { gap: 6px; padding: 0 6px 6px; }
+body[data-layout="compact"] .content { padding: 12px 16px 18px; }
+
+body[data-layout="compact"] .greeting {
+  font-size: 22px;
+  margin: 6px 0 12px;
+}
+
+body[data-layout="compact"] .section-title { font-size: 15px; margin: 18px 0 8px; }
+
+body[data-layout="compact"] .library-row { padding: 4px 8px; }
+
+body[data-layout="compact"] .library-row img,
+body[data-layout="compact"] .library-row .thumb {
+  width: 34px;
+  height: 34px;
+}
+
+body[data-layout="compact"] .library-row .sub { display: none; }
+
+body[data-layout="compact"] .track-head,
+body[data-layout="compact"] .track-row {
+  padding: 2px 10px;
+  gap: 10px;
+}
+
+body[data-layout="compact"] .track-row .cell-title img,
+body[data-layout="compact"] .track-row .cell-title .thumb {
+  width: 30px;
+  height: 30px;
+}
+
+body[data-layout="compact"] .grid {
+  grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+  gap: 10px;
+}
+
+body[data-layout="compact"] .card { padding: 8px; }
+body[data-layout="compact"] .card img,
+body[data-layout="compact"] .card .thumb { margin-bottom: 8px; box-shadow: none; }
+body[data-layout="compact"] .card .title { font-size: 13px; }
+body[data-layout="compact"] .card .sub { font-size: 11.5px; -webkit-line-clamp: 1; }
+
+body[data-layout="compact"] .quick { height: 48px; }
+body[data-layout="compact"] .quick img,
+body[data-layout="compact"] .quick .thumb { width: 48px; height: 48px; }
+
+body[data-layout="compact"] .np img,
+body[data-layout="compact"] .np .thumb {
+  width: 44px;
+  height: 44px;
+}
+
+body[data-layout="compact"] .detail-head { padding: 16px 0 12px; gap: 16px; }
+
+body[data-layout="compact"] .detail-head img,
+body[data-layout="compact"] .detail-head .thumb {
+  width: 128px;
+  height: 128px;
+}
+
+body[data-layout="compact"] .detail-head h1 { font-size: clamp(24px, 3vw, 40px); }
+body[data-layout="compact"] .detail-actions { padding: 6px 0 12px; gap: 16px; }

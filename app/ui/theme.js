@@ -17,6 +17,7 @@
  * own class names and would find nothing here, so it is never fetched. */
 
 const THEME_KEY = "rustify.theme";
+const LAYOUT_KEY = "rustify.layout";
 
 /** "1db954" or "#1db954" or "abc" -> [r, g, b]. */
 function parseHex(hex) {
@@ -138,6 +139,25 @@ function savedTheme() {
   }
 }
 
+/** Rearrange the interface. Layouts are structure, themes are colour, and
+ * the two are independent: every rule in layouts.css reads the same
+ * variables the base does, so any layout wears any scheme.
+ *
+ * `spotify` is the base itself, so it carries no attribute at all. */
+function applyLayout(name) {
+  const layout = name && name !== "spotify" ? name : "";
+  if (layout) {
+    document.body.dataset.layout = layout;
+    localStorage.setItem(LAYOUT_KEY, layout);
+  } else {
+    delete document.body.dataset.layout;
+    localStorage.removeItem(LAYOUT_KEY);
+  }
+}
+
+const savedLayout = () => localStorage.getItem(LAYOUT_KEY) || "spotify";
+
 // Applied before anything renders: the colours are stored with the choice, so
 // startup never waits on the network to avoid a flash of the wrong palette.
 applyTheme(savedTheme());
+applyLayout(savedLayout());
