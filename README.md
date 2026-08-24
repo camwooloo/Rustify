@@ -109,11 +109,17 @@ Any layout wears any scheme.
 
 <img src="assets/screenshots/layouts.png" width="820" alt="The layout and colour pickers">
 
-**Layouts** ship with the app — *Spotify* (the default), *New Look* and
-*Compact*. New Look is after the [Spotify Redesign community
-concept](https://www.figma.com/community/file/1376999463181735262/spotify-redesign):
-a flat sidebar, segmented tabs, capped cards, and a floating player bar with
-the transport on the left.
+**Seven layouts** ship with the app:
+
+| | |
+|---|---|
+| **Spotify** | The default. Panels on a black shell, controls centred. |
+| **New Look** | After the [Spotify Redesign concept](https://www.figma.com/community/file/1376999463181735262/spotify-redesign) — flat sidebar, segmented tabs, capped cards, transport on the left. |
+| **Compact** | The same arrangement, tightened. More on screen. |
+| **Aurora** | Rustify's first look: translucent panels over an ambient wash. |
+| **Focus** | The queue steps out and the artwork takes the room. |
+| **Classic** | Flush and square, before everything floated. |
+| **Mirror** | Handed the other way: library right, queue left. |
 
 <img src="assets/screenshots/layout-newlook.png" width="820" alt="Rustify wearing the New Look layout">
 

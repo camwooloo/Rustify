@@ -366,3 +366,179 @@ body[data-layout="compact"] .detail-head .thumb {
 
 body[data-layout="compact"] .detail-head h1 { font-size: clamp(24px, 3vw, 40px); }
 body[data-layout="compact"] .detail-actions { padding: 6px 0 12px; gap: 16px; }
+
+/* ==================================================== Aurora ===========
+   Rustify's own first look, kept as a layout: translucent panels over an
+   ambient wash, generous corners, cards that lift. The app moved to
+   Spotify's flatter surfaces, and this is here for anyone who preferred
+   what it had before. */
+
+body[data-layout="aurora"] {
+  --radius: 22px;
+  --radius-sm: 14px;
+  --bar-h: 88px;
+}
+
+/* The wash the old look sat on. Behind everything, and never in the way. */
+body[data-layout="aurora"]::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(1100px 600px at 12% -10%, rgba(var(--accent-rgb), 0.16), transparent 60%),
+    radial-gradient(900px 520px at 100% 0%, rgba(90, 130, 255, 0.12), transparent 55%);
+}
+
+body[data-layout="aurora"] #app { position: relative; z-index: 1; }
+
+body[data-layout="aurora"] .panel {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(18px);
+}
+
+body[data-layout="aurora"] #player {
+  margin: 0 10px 10px;
+  padding: 0 18px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius);
+  backdrop-filter: blur(18px);
+}
+
+body[data-layout="aurora"] .card {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  transition: transform 0.3s var(--ease), border-color 0.3s var(--ease),
+    box-shadow 0.3s var(--ease);
+}
+
+body[data-layout="aurora"] .card:hover {
+  background: rgba(255, 255, 255, 0.05);
+  transform: translateY(-4px);
+  border-color: rgba(255, 255, 255, 0.2);
+  box-shadow: 0 30px 80px -28px rgba(0, 0, 0, 0.7);
+}
+
+body[data-layout="aurora"] .card img,
+body[data-layout="aurora"] .card .thumb { border-radius: var(--radius-sm); }
+
+/* Said again here: the rule above outranks the base's round-card rule, and
+   without this artists come out as rounded squares. */
+body[data-layout="aurora"] .card.round img,
+body[data-layout="aurora"] .card.round .thumb { border-radius: 50%; }
+body[data-layout="aurora"] .library-row { border-radius: 12px; }
+body[data-layout="aurora"] .track-row { border-radius: 12px; }
+body[data-layout="aurora"] .np img,
+body[data-layout="aurora"] .np .thumb { border-radius: 12px; }
+body[data-layout="aurora"] .home-btn { border: 1px solid rgba(255, 255, 255, 0.1); }
+
+body[data-layout="aurora"] .detail-head img,
+body[data-layout="aurora"] .detail-head .thumb { border-radius: 18px; }
+
+/* ==================================================== Focus ============
+   For listening rather than browsing: the queue steps out, the content sits
+   in a column narrow enough to read, and the artwork gets the room that
+   frees up. The library stays — a layout that hides how you navigate is a
+   layout you cannot use. */
+
+body[data-layout="focus"] #rail { display: none; }
+
+body[data-layout="focus"] #shell,
+body[data-layout="focus"] #shell.with-rail {
+  grid-template-columns: var(--side-w, 268px) minmax(0, 1fr);
+}
+
+body[data-layout="focus"] .content { padding: 18px 0 32px; }
+
+body[data-layout="focus"] .content > * {
+  max-width: 860px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+body[data-layout="focus"] .greeting { font-size: 38px; }
+
+body[data-layout="focus"] .detail-head img,
+body[data-layout="focus"] .detail-head .thumb {
+  width: 232px;
+  height: 232px;
+}
+
+body[data-layout="focus"] .detail-head h1 { font-size: clamp(34px, 5vw, 66px); }
+
+body[data-layout="focus"] .grid {
+  grid-template-columns: repeat(auto-fill, minmax(184px, 1fr));
+}
+
+body[data-layout="focus"] .np img,
+body[data-layout="focus"] .np .thumb { width: 60px; height: 60px; }
+
+/* ==================================================== Classic ==========
+   Flush and square, the way desktop applications looked before everything
+   floated: no gaps between the panels, no rounded corners, and a player bar
+   that spans the window with a rule above it. */
+
+body[data-layout="classic"] {
+  --radius: 0px;
+  --radius-sm: 0px;
+  --bar-h: 76px;
+}
+
+body[data-layout="classic"] #shell { gap: 1px; padding: 0; }
+
+body[data-layout="classic"] .panel {
+  border-radius: 0;
+  background: var(--surface);
+}
+
+body[data-layout="classic"] #player {
+  border-top: 1px solid var(--hairline);
+  background: var(--surface);
+}
+
+body[data-layout="classic"] .card {
+  border-radius: 0;
+  border: 1px solid var(--hairline);
+}
+
+body[data-layout="classic"] .card img,
+body[data-layout="classic"] .card .thumb { border-radius: 0; box-shadow: none; }
+body[data-layout="classic"] .card.round img,
+body[data-layout="classic"] .card.round .thumb { border-radius: 50%; }
+
+body[data-layout="classic"] .library-row img,
+body[data-layout="classic"] .library-row .thumb,
+body[data-layout="classic"] .np img,
+body[data-layout="classic"] .np .thumb,
+body[data-layout="classic"] .detail-head img,
+body[data-layout="classic"] .detail-head .thumb { border-radius: 0; }
+
+body[data-layout="classic"] .track-row,
+body[data-layout="classic"] .library-row { border-radius: 0; }
+body[data-layout="classic"] .chip { border-radius: 4px; }
+body[data-layout="classic"] .search-box { border-radius: 4px; }
+body[data-layout="classic"] .quick { border-radius: 0; }
+
+/* ==================================================== Mirror ===========
+   The same layout, handed the other way: library on the right, queue on the
+   left. Only the panels move — text still reads left to right. */
+
+body[data-layout="mirror"] #shell {
+  grid-template-columns: minmax(0, 1fr) var(--side-w, 268px);
+}
+
+body[data-layout="mirror"] #shell.with-rail {
+  grid-template-columns: var(--rail-w, 300px) minmax(0, 1fr) var(--side-w, 268px);
+}
+
+body[data-layout="mirror"] #rail { order: 1; }
+body[data-layout="mirror"] #main { order: 2; }
+body[data-layout="mirror"] #sidebar { order: 3; }
+
+/* The drag handles belong on the inner edge of whichever side each panel
+   now sits on, or they end up outside the window. */
+body[data-layout="mirror"] .gutter-side { right: auto; left: -10px; }
+body[data-layout="mirror"] .gutter-rail { left: auto; right: -5px; }

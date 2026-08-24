@@ -586,6 +586,14 @@ function highlightLyrics() {
  *  show, and the only one expanded by default in Settings. */
 const CHANGELOG = [
   {
+    v: "1.3.0",
+    d: "24 Aug 2026",
+    notes: [
+      "Layouts have a tab of their own beside Extensions and Themes, rather than sharing a page with colour schemes",
+      "Seven layouts now: Spotify, New Look, Compact, and four new ones — Aurora (the app's first look, translucent panels over a wash), Focus (the queue steps out and the artwork takes the room), Classic (flush and square) and Mirror (library right, queue left)",
+    ],
+  },
+  {
     v: "1.2.1",
     d: "24 Aug 2026",
     notes: [
@@ -1073,8 +1081,8 @@ async function renderSettings(content) {
 
       <div class="set-group">Appearance</div>
       ${setRow(
-        "Themes and extensions",
-        "Colour schemes, Discord Rich Presence and the equaliser live together on their own page.",
+        "Extensions, themes and layouts",
+        "Discord Rich Presence, the equaliser and the visualiser, plus colour schemes and arrangements, live together on their own page.",
         `<button class="pill" id="set-themes">Open</button>`
       )}
 
@@ -1522,6 +1530,52 @@ const LAYOUTS = [
       <circle cx="50" cy="51" r="2.6" fill="${c.accent}" />
       <rect x="56" y="50" width="18" height="2" rx="1" fill="${c.dim}" />`,
   },
+  {
+    id: "aurora",
+    name: "Aurora",
+    note: "Rustify's first look: translucent panels over an ambient wash, generous corners, cards that lift.",
+    wire: (c) => `
+      <ellipse cx="24" cy="6" rx="34" ry="16" fill="${c.accent}" opacity="0.22" />
+      <ellipse cx="86" cy="8" rx="26" ry="14" fill="#5a82ff" opacity="0.16" />
+      <rect x="3" y="4" width="28" height="40" rx="7" fill="${c.panel}" opacity="0.75" />
+      <rect x="34" y="4" width="63" height="40" rx="7" fill="${c.panel}" opacity="0.75" />
+      <rect x="3" y="47" width="94" height="9" rx="6" fill="${c.panel}" opacity="0.75" />
+      <circle cx="50" cy="51.5" r="3.2" fill="${c.accent}" />`,
+  },
+  {
+    id: "focus",
+    name: "Focus",
+    note: "For listening rather than browsing: the queue steps out and the artwork takes the room.",
+    wire: (c) => `
+      <rect x="2" y="2" width="26" height="42" rx="3" fill="${c.panel}" />
+      <rect x="31" y="2" width="67" height="42" rx="3" fill="${c.panel}" />
+      <rect x="47" y="8" width="34" height="22" rx="2" fill="${c.dim}" opacity="0.5" />
+      <rect x="47" y="33" width="26" height="3" rx="1.5" fill="${c.dim}" />
+      <circle cx="50" cy="50.5" r="3.2" fill="${c.accent}" />
+      <rect x="57" y="49.5" width="20" height="2" rx="1" fill="${c.dim}" />`,
+  },
+  {
+    id: "classic",
+    name: "Classic",
+    note: "Flush and square, the way desktop applications looked before everything floated.",
+    wire: (c) => `
+      <rect x="0" y="0" width="28" height="46" fill="${c.panel}" />
+      <rect x="29" y="0" width="71" height="46" fill="${c.panel}" />
+      <rect x="0" y="47" width="100" height="11" fill="${c.panel}" />
+      <rect x="0" y="47" width="100" height="0.8" fill="${c.dim}" />
+      <circle cx="50" cy="52.5" r="3" fill="${c.accent}" />`,
+  },
+  {
+    id: "mirror",
+    name: "Mirror",
+    note: "The same layout handed the other way: library on the right, queue on the left.",
+    wire: (c) => `
+      <rect x="2" y="2" width="26" height="42" rx="3" fill="${c.panel}" opacity="0.75" />
+      <rect x="31" y="2" width="39" height="42" rx="3" fill="${c.panel}" />
+      <rect x="73" y="2" width="25" height="42" rx="3" fill="${c.panel}" />
+      ${[7, 13, 19, 25].map((y) => `<rect x="77" y="${y}" width="17" height="2.5" rx="1.25" fill="${c.dim}" />`).join("")}
+      <circle cx="50" cy="50.5" r="3.2" fill="${c.accent}" />`,
+  },
 ];
 
 /** One layout, drawn in the colours currently in use. */
@@ -1557,6 +1611,7 @@ function layoutCard(layout) {
 const HUB_TABS = [
   ["extensions", "Extensions"],
   ["themes", "Themes"],
+  ["layouts", "Layouts"],
 ];
 
 /* Presets are the ones people actually reach for, in the order a list of
@@ -1622,26 +1677,14 @@ async function renderHub(content, tab) {
 
   const body = content.querySelector("#hub-body");
 
-  if (hubTab === "themes") {
+  if (hubTab === "layouts") {
     body.innerHTML = `
-      <h2 class="section-title">Layout</h2>
       <p class="set-note hub-note">
         How the interface is arranged. One is always in use, and it is
-        independent of colour: any layout wears any scheme.
+        independent of colour: every layout wears every scheme, so pick one
+        here and a palette under Themes.
       </p>
-      <div class="layout-grid">${LAYOUTS.map(layoutCard).join("")}</div>
-
-      <h2 class="section-title">Colours</h2>
-      <p class="set-note hub-note">
-        Colour schemes in Spicetify's format, from any Spicetify install on
-        this computer and from the community collection. These repaint the
-        interface; they never move anything. Only the colours are read —
-        never anyone's code.
-      </p>
-      <div class="theme-bar">
-        <div class="control"><button class="pill" id="theme-refresh">Refresh</button></div>
-      </div>
-      <div class="theme-grid" id="theme-grid"></div>`;
+      <div class="layout-grid">${LAYOUTS.map(layoutCard).join("")}</div>`;
 
     body.querySelectorAll("[data-layout-pick]").forEach((card) => {
       card.onclick = () => {
@@ -1652,6 +1695,21 @@ async function renderHub(content, tab) {
         toast(LAYOUTS.find((l) => l.id === card.dataset.layoutPick)?.name || "Layout changed");
       };
     });
+    return;
+  }
+
+  if (hubTab === "themes") {
+    body.innerHTML = `
+      <p class="set-note hub-note">
+        Colour schemes in Spicetify's format, from any Spicetify install on
+        this computer and from the community collection. These repaint the
+        interface; they never move anything — the arrangement lives under
+        Layouts. Only the colours are read, never anyone's code.
+      </p>
+      <div class="theme-bar">
+        <div class="control"><button class="pill" id="theme-refresh">Refresh</button></div>
+      </div>
+      <div class="theme-grid" id="theme-grid"></div>`;
 
     const grid = body.querySelector("#theme-grid");
     renderThemes(grid, false);
