@@ -2248,3 +2248,9 @@ body.viz #player { background: rgba(0, 0, 0, 0.55); }
   font-size: 12px;
   line-height: 1.5;
 }
+
+/* A speaker found on the network but not yet signed in. */
+.device-row.discovered { opacity: 0.75; }
+.device-row.discovered:hover { opacity: 1; }
+.device-row.waking { opacity: 1; pointer-events: none; }
+.device-row.waking .hint { color: var(--accent); }

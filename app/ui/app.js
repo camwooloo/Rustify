@@ -586,6 +586,15 @@ function highlightLyrics() {
  *  show, and the only one expanded by default in Settings. */
 const CHANGELOG = [
   {
+    v: "1.4.0",
+    d: "31 Aug 2026",
+    notes: [
+      "Speakers on the network — Echos, receivers, anything running librespot — are listed alongside the devices already signed in, found by listening for them rather than by asking Spotify",
+      "Picking one that is not signed in signs it in and starts it playing, using the handshake the official client uses",
+      "Amazon's speakers refuse that handshake and say so plainly when picked; they still list, and still work once something else has woken them",
+    ],
+  },
+  {
     v: "1.3.0",
     d: "24 Aug 2026",
     notes: [
@@ -3444,28 +3453,71 @@ $("#btn-devices").onclick = async (e) => {
   const res = await call({ cmd: "listDevices" }).catch(() => null);
   if (!res) return;
 
+  const rows = (res.items || []).map((d) => {
+    // A speaker found on the network is not signed in yet, so it has to be
+    // woken before anything can be sent to it. Saying so is the difference
+    // between a slow click and a broken one.
+    // Three Echo Shows answer with the same model name, so the address is
+    // what tells them apart until one is signed in and the account supplies
+    // the name its owner gave it.
+    let where = "";
+    try {
+      where = d.endpoint ? new URL(d.endpoint).hostname : "";
+    } catch {
+      /* an address we cannot parse is not worth showing */
+    }
+
+    const note = d.discovered
+      ? `${where ? where + " · " : ""}not signed in`
+      : `${d.deviceType}${d.isActive ? " · Active" : ""}`;
+
+    return `<button class="device-row ${d.isActive ? "active" : ""}${
+      d.discovered ? " discovered" : ""
+    }" data-dev="${esc(d.id)}" ${d.endpoint ? `data-wake="${esc(d.endpoint)}"` : ""}>
+        ${icon("devices")}
+        <div><div>${esc(d.name)}${d.isSelf ? " (this app)" : ""}</div>
+        <div class="hint" style="margin:0">${esc(note)}</div></div>
+      </button>`;
+  });
+
   pop.innerHTML =
     `<h3>Connect to a device</h3>
      <p class="hint">Pick where to play. This app is itself a Spotify Connect
-     device, so your phone can control it too.</p>` +
-    (res.items || [])
-      .map(
-        (d) => `<button class="device-row ${d.isActive ? "active" : ""}"
-            data-dev="${esc(d.id)}">
-            ${icon("devices")}
-            <div><div>${esc(d.name)}${d.isSelf ? " (this app)" : ""}</div>
-            <div class="hint" style="margin:0">${esc(d.deviceType)}${
-              d.isActive ? " · Active" : ""
-            }</div></div>
-          </button>`
-      )
-      .join("");
+     device, so your phone can control it too.</p>` + rows.join("");
 
   pop.querySelectorAll("[data-dev]").forEach((b) => {
     b.onclick = async () => {
-      await call({ cmd: "transferPlayback", deviceId: b.dataset.dev, play: true });
-      closePopovers();
-      toast("Playback transferred");
+      const endpoint = b.dataset.wake;
+
+      if (!endpoint) {
+        await call({ cmd: "transferPlayback", deviceId: b.dataset.dev, play: true });
+        closePopovers();
+        toast("Playback transferred");
+        return;
+      }
+
+      // Waking takes a few seconds: the speaker signs in, the account
+      // notices, and only then can playback move. The row says so rather
+      // than looking frozen.
+      const label = b.querySelector("div > div");
+      const was = label.textContent;
+      b.classList.add("waking");
+      label.textContent = `Waking ${was}…`;
+
+      try {
+        await call({
+          cmd: "wakeDevice",
+          endpoint,
+          deviceId: b.dataset.dev,
+          play: true,
+        });
+        closePopovers();
+        toast(`Playing on ${was}`);
+      } catch {
+        // The daemon said why.
+        b.classList.remove("waking");
+        label.textContent = was;
+      }
     };
   });
 };

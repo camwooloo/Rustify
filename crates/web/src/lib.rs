@@ -543,6 +543,9 @@ impl WebClient {
                 device_type: format!("{:?}", d._type).to_lowercase(),
                 is_active: d.is_active,
                 volume_percent: d.volume_percent,
+                // Anything the Web API returns is signed in by definition.
+                discovered: false,
+                endpoint: None,
             })
             .collect())
     }

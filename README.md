@@ -67,6 +67,12 @@ a queue, recently played, and time-synced lyrics. Playback runs through
 librespot, so Rustify appears as a normal **Spotify Connect** device — start
 something on your phone and pick it up here, or the other way round.
 
+The device list goes further than the Web API's, which only knows about
+devices already signed in. Rustify listens for speakers advertising
+themselves on the network, so idle ones show up too, and picking a speaker
+that is not signed in signs it in and starts it playing — the same handshake
+the official client performs.
+
 <img src="assets/screenshots/playlist.png" width="820" alt="A playlist, with the track list and editing menu">
 
 Playlists are editable: rename, describe, delete, add and remove tracks, and
@@ -222,6 +228,13 @@ this device. The attempt is preserved on the `play-next-spike` branch.
 **Friend activity** is not implemented. The buddylist endpoint rejects every
 credential this app can obtain; it only accepts a token minted from a browser
 session cookie.
+
+**Amazon speakers cannot be woken.** Echos are found and listed, but they
+answer the sign-in handshake with an HTTP 500 whatever it contains — every
+documented shape, payload and token was tried, and the timing says they never
+get as far as asking Spotify. Start one from Alexa or the official app and it
+joins the list like any other device. Speakers running librespot, spotifyd or
+go-librespot are woken properly, and there is a test that does it.
 
 **Free accounts** cannot play. librespot exits on a non-Premium account.
 

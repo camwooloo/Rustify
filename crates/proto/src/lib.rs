@@ -213,6 +213,15 @@ pub enum Command {
     /// Ask for spectrum frames, or stop asking. Repeat while watching: the
     /// daemon stops on its own if a window goes away without saying so.
     WatchSpectrum { on: bool },
+    /// Sign a speaker found on the network in to the account, then play on
+    /// it. Devices that are already signed in never need this.
+    #[serde(rename_all = "camelCase")]
+    WakeDevice {
+        endpoint: String,
+        device_id: String,
+        #[serde(default = "default_true")]
+        play: bool,
+    },
     /// The listener's most-played tracks.
     #[serde(rename_all = "camelCase")]
     GetTopTracks {
@@ -487,6 +496,13 @@ pub struct Device {
     pub volume_percent: Option<u32>,
     /// True when the device is this daemon.
     pub is_self: bool,
+    /// Advertising itself on the network but not signed in to the account.
+    /// The Web API cannot see these, so they are found by looking.
+    #[serde(default)]
+    pub discovered: bool,
+    /// Where to sign it in, for the ones that need it.
+    #[serde(default)]
+    pub endpoint: Option<String>,
 }
 
 /// Settings the user can change. Only things this app genuinely controls;

@@ -58,6 +58,9 @@ pub struct Daemon {
     /// epoch. A visualiser that closes cleanly says so; one whose window
     /// died is noticed here instead.
     spectrum_asked_at: std::sync::atomic::AtomicU64,
+    /// A standing browse for Spotify Connect speakers on the network, so the
+    /// list is already complete when someone opens the device picker.
+    speakers: RwLock<Option<spotify_player_core::zeroconf::Browser>>,
     config: EngineConfig,
 }
 
@@ -87,6 +90,7 @@ impl Daemon {
             // Assume visible: a client that never reports still works.
             ui_visible: std::sync::atomic::AtomicBool::new(true),
             spectrum_asked_at: std::sync::atomic::AtomicU64::new(0),
+            speakers: RwLock::new(None),
             config,
         })
     }
@@ -222,6 +226,13 @@ impl Daemon {
         {
             let saved = crate::config::load().settings;
             engine.set_equaliser(saved.equaliser, &saved.equaliser_gains);
+        }
+
+        // A network without mDNS is not a broken device list, so a browse
+        // that cannot start is noted and forgotten.
+        match spotify_player_core::zeroconf::Browser::start() {
+            Ok(browser) => *self.speakers.write().await = Some(browser),
+            Err(e) => tracing::debug!("no network discovery: {e:#}"),
         }
 
         *self.engine.write().await = Some(engine);
@@ -797,11 +808,101 @@ impl Daemon {
                 let web = self.require_web().await?;
                 let web = web.as_ref().expect("checked by require_web");
                 let name = self.state.read().await.device_name.clone();
-                let items = web.devices(&name).await?;
+                let mut items = web.devices(&name).await?;
+
+                // Speakers advertising themselves on the network but not
+                // signed in are invisible to the Web API, so they are looked
+                // for separately and added to the end.
+                {
+                    let found = match self.speakers.read().await.as_ref() {
+                        Some(browser) => browser.devices().await,
+                        None => Vec::new(),
+                    };
+
+                    {
+                        for device in found {
+                            // Amazon registers the same speaker with a
+                            // suffix on its id — `…059` over zeroconf becomes
+                            // `…059_amzn_1` in the account — so an exact
+                            // match would list the Dining Room twice.
+                            let known = items.iter().any(|d| {
+                                d.id == device.device_id
+                                    || d.id.starts_with(&device.device_id)
+                                    || device.device_id.starts_with(&d.id)
+                            });
+                            if known || device.device_id.is_empty() {
+                                continue;
+                            }
+                            items.push(spotify_proto::Device {
+                                id: device.device_id,
+                                name: device.name,
+                                device_type: device.device_type,
+                                is_active: false,
+                                volume_percent: None,
+                                is_self: false,
+                                discovered: true,
+                                endpoint: Some(device.endpoint),
+                            });
+                        }
+                    }
+                }
+
                 let _ = self.events.send(Event::Devices {
                     items: items.clone(),
                 });
                 Ok(Payload::Devices { items })
+            }
+
+            WakeDevice {
+                endpoint,
+                device_id,
+                play,
+            } => {
+                let engine = self.engine().await?;
+                let session = engine.session();
+
+                let username = session.username();
+                if username.is_empty() {
+                    return Err(anyhow!("not signed in yet"));
+                }
+
+                let token = session
+                    .login5()
+                    .auth_token()
+                    .await
+                    .map_err(|e| anyhow!("could not get a token for the speaker: {e}"))?;
+
+                spotify_player_core::zeroconf::wake(
+                    &endpoint,
+                    &username,
+                    &token.access_token,
+                )
+                .await?;
+
+                // The speaker signs in on its own schedule and appears in the
+                // account's device list a moment later. Waiting for it here
+                // means one click does the whole thing rather than asking
+                // someone to pick the device twice.
+                let web = self.require_web().await?;
+                let web = web.as_ref().expect("checked by require_web");
+                let name = self.state.read().await.device_name.clone();
+
+                for _ in 0..12 {
+                    tokio::time::sleep(std::time::Duration::from_millis(600)).await;
+
+                    let items = web.devices(&name).await.unwrap_or_default();
+                    let arrived = items.iter().any(|d| d.id == device_id);
+                    let _ = self.events.send(Event::Devices { items });
+
+                    if arrived {
+                        web.transfer_playback(&device_id, play).await?;
+                        return Ok(Payload::Ok);
+                    }
+                }
+
+                Err(anyhow!(
+                    "the speaker took the sign-in but has not joined Spotify Connect yet — try it again in a moment"
+                ))
             }
 
             TransferPlayback { device_id, play } => {

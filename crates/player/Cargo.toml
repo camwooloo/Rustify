@@ -7,6 +7,18 @@ license.workspace = true
 
 [dependencies]
 rustfft = "6"
+
+# Finding Spotify Connect speakers on the network, and the crypto that signs
+# one in: the handshake mirrors the receiving half librespot already ships.
+mdns-sd = "0.13"
+aes = "0.8"
+pbkdf2 = { version = "0.12", default-features = false, features = ["hmac"] }
+hex = "0.4"
+ctr = "0.9"
+hmac = "0.12"
+sha1 = "0.10"
+base64 = "0.22"
+rand = "0.9"
 spotify-proto.workspace = true
 
 librespot-core.workspace = true
@@ -31,3 +43,8 @@ thiserror.workspace = true
 tracing.workspace = true
 directories.workspace = true
 url.workspace = true
+
+[dev-dependencies]
+# The receiving half of the zeroconf handshake, so the sign-in can be tested
+# against a real implementation rather than against our own assumptions.
+librespot-discovery = "0.8"
