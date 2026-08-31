@@ -1,0 +1,21 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "installCommand": "echo no dependencies",
+  "buildCommand": "mkdir -p _site/assets/screenshots && cp site/* _site/ && cp assets/logo.svg _site/assets/ && cp assets/screenshots/*.png _site/assets/screenshots/",
+  "outputDirectory": "_site",
+  "cleanUrls": true,
+  "headers": [
+    {
+      "source": "/assets/(.*)",
+      "headers": [{ "key": "Cache-Control", "value": "public, max-age=604800, immutable" }]
+    },
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" }
+      ]
+    }
+  ]
+}
