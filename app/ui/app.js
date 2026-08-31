@@ -919,7 +919,9 @@ function checkForUpdate() {
 
 /** Bottom-centre bar offering an update, and then showing it happening. */
 function showUpdateBar(info) {
-  if (!info || document.getElementById("updbar")) return;
+  // No url means the release is up but its installer is still uploading —
+  // there is nothing to offer yet, so no bar.
+  if (!info || !info.url || document.getElementById("updbar")) return;
 
   const bar = el("div", { className: "updbar", id: "updbar" });
   bar.innerHTML = `
@@ -1177,9 +1179,13 @@ async function renderSettings(content) {
     button.textContent = "Checking…";
     try {
       const info = await invoke("check_update");
-      if (info) {
+      if (info && info.url) {
         showUpdateBar(info);
         toast(`Version ${info.version} is available`);
+      } else if (info) {
+        toast(
+          `Version ${info.version} is out, but its download is still building — try again in a few minutes`,
+        );
       } else {
         toast("Rustify is up to date");
       }

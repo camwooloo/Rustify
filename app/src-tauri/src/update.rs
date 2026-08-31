@@ -107,7 +107,20 @@ pub async fn check() -> Option<UpdateInfo> {
         } else {
             name.ends_with(".appimage")
         }
-    })?;
+    });
+
+    // A release is published before its builds finish uploading, so for a few
+    // minutes there is a newer version with nothing to download. Saying
+    // "up to date" then is a lie — the version is reported with no url, and
+    // whoever asked is told to come back shortly.
+    let Some(asset) = asset else {
+        info!("v{version} is out, but has no download for this platform yet");
+        return Some(UpdateInfo {
+            version,
+            url: String::new(),
+            notes: release.body.clone(),
+        });
+    };
 
     info!("update available: v{version}");
     Some(UpdateInfo {
