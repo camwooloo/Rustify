@@ -1,5 +1,7 @@
-# Builds Rustify for Windows, macOS and Linux and attaches one download per
-# platform to the release for the tag.
+# Builds Rustify for Windows, macOS and Linux and attaches the downloads for
+# the tag's release: an installer for Windows, a disk image for each kind of
+# Mac, and three Linux packages so the common distributions are covered
+# without asking anyone to build from source.
 #
 # The app ships the daemon and the CLI alongside it as bundle resources, so
 # each job builds those first and drops them where the bundler expects, under
@@ -60,14 +62,22 @@ jobs:
             os: windows-latest
             bundle: nsis
             pattern: "*-setup.exe"
-          - name: macOS
+          # macos-latest is Apple Silicon and macos-13 is Intel, so each
+          # builds natively rather than cross-compiling.
+          - name: macOS (Apple Silicon)
             os: macos-latest
             bundle: dmg
             pattern: "*.dmg"
+          - name: macOS (Intel)
+            os: macos-13
+            bundle: dmg
+            pattern: "*.dmg"
+          # deb covers Debian, Ubuntu and Mint; rpm covers Fedora, RHEL and
+          # openSUSE; the AppImage covers everything else, Arch included.
           - name: Linux
             os: ubuntu-22.04
-            bundle: appimage
-            pattern: "*.AppImage"
+            bundle: deb,rpm,appimage
+            pattern: "*.AppImage *.deb *.rpm"
 
     steps:
       - uses: actions/checkout@v4
@@ -83,7 +93,8 @@ jobs:
             librsvg2-dev \
             patchelf \
             libasound2-dev \
-            libssl-dev
+            libssl-dev \
+            rpm
 
       - uses: dtolnay/rust-toolchain@stable
 
@@ -109,14 +120,16 @@ jobs:
           fi
 
       - name: Build the app
-        run: cargo install tauri-cli --version "^2" --locked && cargo tauri build
+        run: cargo install tauri-cli --version "^2" --locked && cargo tauri build --bundles ${{ matrix.bundle }}
         working-directory: app/src-tauri
 
       - name: Collect the download
         shell: bash
         run: |
           mkdir -p dist
-          find target/release/bundle -name "${{ matrix.pattern }}" -type f -exec cp {} dist/ \;
+          for pattern in ${{ matrix.pattern }}; do
+            find target/release/bundle -name "$pattern" -type f -exec cp {} dist/ \;
+          done
           ls -la dist
 
       - uses: actions/upload-artifact@v4

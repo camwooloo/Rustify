@@ -160,8 +160,10 @@ async fn check_update() -> Option<update::UpdateInfo> {
 /// Download the installer and hand off to it, reporting download progress to
 /// the window as it goes.
 ///
-/// The app does not exit here: the silent installer closes Rustify itself and
-/// starts the new build when it is done.
+/// The app then quits, because Windows will not let anything overwrite the
+/// image of a running process: a window left open is a window the installer
+/// silently skips, which is how an install can end up with a fresh daemon
+/// beside a shell from months ago. The `/R` switch brings it back up.
 #[tauri::command]
 async fn apply_update(app: tauri::AppHandle, url: String) -> Result<(), String> {
     use tauri::Emitter;
@@ -173,7 +175,21 @@ async fn apply_update(app: tauri::AppHandle, url: String) -> Result<(), String> 
     .await
     .map_err(|e| format!("{e:#}"))?;
 
+    let _ = app.emit("update-installing", ());
+
+    // Long enough for the installer to be up and for the window to say what
+    // is about to happen, short enough not to look like a hang.
+    tokio::time::sleep(std::time::Duration::from_millis(900)).await;
+    app.exit(0);
+
     Ok(())
+}
+
+/// What this build actually is, as opposed to what its baked-in changelog
+/// says. The two can differ when an update only half lands.
+#[tauri::command]
+fn app_version() -> &'static str {
+    env!("CARGO_PKG_VERSION")
 }
 
 #[cfg(windows)]
@@ -297,6 +313,7 @@ fn main() {
             connected,
             check_update,
             apply_update,
+            app_version,
             update_installs_itself,
             spicetify_themes,
             open_mini,

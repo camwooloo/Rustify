@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Rustify — a Spotify player in Rust</title>
+    <meta
+      name="description"
+      content="A Spotify player in Rust, where the music doesn't live in the window. Close the window before a game; the player keeps going from a 15 MB process."
+    />
+    <link rel="icon" href="assets/logo.svg" type="image/svg+xml" />
+
+    <meta property="og:title" content="Rustify" />
+    <meta
+      property="og:description"
+      content="A Spotify player in Rust, where the music doesn't live in the window."
+    />
+    <meta property="og:image" content="assets/screenshots/home.png" />
+    <meta property="og:type" content="website" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=Chivo:ital,wght@0,300;0,400;0,600;1,400&family=JetBrains+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+
+  <body>
+    <div class="grain" aria-hidden="true"></div>
+    <canvas class="stars" id="stars" aria-hidden="true"></canvas>
+
+    <header class="nav">
+      <a class="nav-mark" href="#top" aria-label="Rustify">
+        <img src="assets/logo.svg" alt="" width="30" height="30" />
+        <span>Rustify</span>
+      </a>
+      <nav class="nav-links">
+        <a href="#architecture">How it works</a>
+        <a href="#features">Features</a>
+        <a href="#download">Download</a>
+        <a href="https://github.com/camwooloo/Rustify">GitHub</a>
+        <a class="nav-out" href="https://camwooloo.com">camwooloo.com</a>
+      </nav>
+    </header>
+
+    <main id="top">
+      <!-- ─────────────────────────────────────────────── hero -->
+      <section class="hero">
+        <div class="hero-copy">
+          <p class="eyebrow">Spotify client · Rust · Windows, macOS, Linux</p>
+          <h1>
+            The music doesn't<br />
+            live in the <em>window</em>.
+          </h1>
+          <p class="lede">
+            Rustify splits the player from the interface. Close the window
+            before you launch a game — the music keeps going from a 15 MB
+            process that has never composited a frame, never loaded a browser
+            engine, and never touched your GPU.
+          </p>
+
+          <div class="dl" id="dl">
+            <a class="dl-main" id="dl-main" href="https://github.com/camwooloo/Rustify/releases/latest">
+              <span class="dl-icon" id="dl-icon" aria-hidden="true"></span>
+              <span class="dl-text">
+                <strong id="dl-label">Download Rustify</strong>
+                <small id="dl-meta">latest release · GitHub</small>
+              </span>
+            </a>
+            <a class="dl-alt" href="#download">All platforms</a>
+          </div>
+
+          <p class="hero-note" id="dl-note">Premium account required. Free of charge, MIT licensed.</p>
+        </div>
+
+        <div class="scene" id="scene" aria-hidden="true">
+          <div class="rig" id="rig">
+            <div class="planet">
+              <span class="limb"></span>
+              <span class="lit"></span>
+            </div>
+            <div class="ring" id="ring"></div>
+            <div class="halo"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ─────────────────────────────────────── architecture -->
+      <section class="band" id="architecture">
+        <p class="eyebrow">01 — Architecture</p>
+        <h2>Two processes, one account.</h2>
+        <p class="band-lede">
+          Everything that plays music lives in a daemon. The window is a thin
+          client that connects to it over a local socket, and can be closed,
+          reopened, or replaced without the audio noticing.
+        </p>
+
+        <div class="arch">
+          <article class="node node-window">
+            <p class="node-kind">the window</p>
+            <h3>rustify</h3>
+            <p>Tauri + WebView. Holds no state of its own. Close it whenever you like.</p>
+          </article>
+
+          <div class="wire" aria-hidden="true">
+            <span class="wire-label">newline-delimited JSON · 127.0.0.1:4381</span>
+            <span class="pulse"></span>
+          </div>
+
+          <article class="node node-daemon">
+            <p class="node-kind">the player</p>
+            <h3>rustifyd</h3>
+            <p>librespot. ~15 MB, no GPU context. Its own Spotify Connect device.</p>
+          </article>
+        </div>
+      </section>
+
+      <!-- ────────────────────────────────────────────── shots -->
+      <section class="band" id="features">
+        <p class="eyebrow">02 — What's in it</p>
+        <h2>Built like the app you already know, then further.</h2>
+
+        <div class="grid">
+          <article class="card card-wide tilt">
+            <div class="shot"><img src="assets/screenshots/home.png" alt="Rustify's home page" loading="lazy" /></div>
+            <div class="card-text">
+              <h3>Your library, as you expect it</h3>
+              <p>
+                Playlists, albums, artists, Liked Songs, search with filters, a
+                queue, recently played and time-synced lyrics. Playlists are
+                editable, down to dragging rows to reorder them.
+              </p>
+            </div>
+          </article>
+
+          <article class="card tilt">
+            <div class="shot"><img src="assets/screenshots/layouts.png" alt="The layouts tab" loading="lazy" /></div>
+            <div class="card-text">
+              <h3>Seven layouts</h3>
+              <p>The whole window rearranges — not just its colours. Colour schemes are separate, and Spicetify's are supported.</p>
+            </div>
+          </article>
+
+          <article class="card tilt">
+            <div class="shot"><img src="assets/screenshots/extensions.png" alt="The extensions tab" loading="lazy" /></div>
+            <div class="card-text">
+              <h3>Extensions</h3>
+              <p>Discord rich presence, a five-band equaliser, a visualiser view, and stats.fm built in. All off until you switch them on.</p>
+            </div>
+          </article>
+
+          <article class="card tilt">
+            <div class="shot shot-fit"><img src="assets/screenshots/miniplayer.png" alt="The miniplayer" loading="lazy" /></div>
+            <div class="card-text">
+              <h3>Miniplayer &amp; fullscreen</h3>
+              <p>A small always-on-top window for while you work, and a full-bleed view for while you don't.</p>
+            </div>
+          </article>
+
+          <article class="card tilt">
+            <div class="shot"><img src="assets/screenshots/stats.png" alt="stats.fm inside Rustify" loading="lazy" /></div>
+            <div class="card-text">
+              <h3>Your listening, in numbers</h3>
+              <p>Connect a stats.fm profile and read your hours, top tracks and top artists without leaving the app.</p>
+            </div>
+          </article>
+
+          <article class="card card-note">
+            <p class="tag">New in 1.4</p>
+            <h3>Speakers on the network</h3>
+            <p>
+              Idle Connect speakers are found by listening for them rather than
+              by asking Spotify, so they are on the list before anything has
+              woken them — and picking one signs it in.
+            </p>
+          </article>
+        </div>
+      </section>
+
+      <!-- ──────────────────────────────────────────── numbers -->
+      <section class="numbers">
+        <div><strong>~15 MB</strong><span>player, idle</span></div>
+        <div><strong>0</strong><span>GPU contexts</span></div>
+        <div><strong>3</strong><span>platforms</span></div>
+        <div><strong>MIT</strong><span>licence</span></div>
+      </section>
+
+      <!-- ─────────────────────────────────────────── download -->
+      <section class="band" id="download">
+        <p class="eyebrow">03 — Download</p>
+        <h2>Pick your platform.</h2>
+        <p class="band-lede" id="rel-line">Reading the latest release from GitHub…</p>
+
+        <div class="plats" id="plats">
+          <article class="plat" data-os="windows">
+            <h3>Windows</h3>
+            <p class="plat-sub">Windows 10 and 11 · x64</p>
+            <ul class="links" data-slot="windows"></ul>
+          </article>
+
+          <article class="plat" data-os="macos">
+            <h3>macOS</h3>
+            <p class="plat-sub">Apple Silicon and Intel</p>
+            <ul class="links" data-slot="macos"></ul>
+          </article>
+
+          <article class="plat" data-os="linux">
+            <h3>Linux</h3>
+            <p class="plat-sub">Debian &amp; Ubuntu, Fedora &amp; openSUSE, everything else</p>
+            <ul class="links" data-slot="linux"></ul>
+          </article>
+        </div>
+
+        <p class="fineprint">
+          The builds are unsigned, so Windows SmartScreen and macOS Gatekeeper
+          will both say so the first time. Playback needs a Spotify Premium
+          account — librespot cannot stream on a free one.
+        </p>
+      </section>
+    </main>
+
+    <footer class="foot">
+      <div class="foot-mark">
+        <img src="assets/logo.svg" alt="" width="34" height="34" />
+        <div>
+          <strong>Rustify</strong>
+          <span>by camwooloo</span>
+        </div>
+      </div>
+      <nav class="foot-links">
+        <a href="https://github.com/camwooloo/Rustify">Source</a>
+        <a href="https://github.com/camwooloo/Rustify/releases">Releases</a>
+        <a href="https://github.com/camwooloo/Rustify/issues">Issues</a>
+        <a href="https://camwooloo.com">camwooloo.com</a>
+      </nav>
+      <p class="foot-fine">
+        Not affiliated with Spotify AB. Spotify is a trademark of Spotify AB.
+      </p>
+    </footer>
+
+    <script src="app.js"></script>
+  </body>
+</html>

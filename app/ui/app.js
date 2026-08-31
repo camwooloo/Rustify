@@ -902,6 +902,18 @@ function changelogHtml() {
 /* Whether this build can install an update itself. Asked once, so the update
  * bar can decide what its button does without waiting on a promise. */
 let canSelfInstall = true;
+/** What the running window actually is. The changelog only says what the
+ *  build knew about when it was made, which is a different thing. */
+let BINARY_VERSION = null;
+
+invoke("app_version")
+  .then((v) => {
+    BINARY_VERSION = v;
+  })
+  .catch(() => {
+    /* An older shell without the command; the changelog will have to do. */
+  });
+
 invoke("update_installs_itself")
   .then((self) => {
     canSelfInstall = !!self;
@@ -1120,7 +1132,13 @@ async function renderSettings(content) {
       <div class="set-group">About</div>
       ${setRow(
         "Rustify",
-        `Rustify v${esc(APP_VERSION)} \u00b7 daemon ${esc(view.daemonVersion)}.
+        `Rustify v${esc(BINARY_VERSION || APP_VERSION)} \u00b7 daemon ${esc(
+          view.daemonVersion,
+        )}.${
+          BINARY_VERSION && BINARY_VERSION !== view.daemonVersion
+            ? " <strong>These should match</strong> — an update has only half landed, so install the latest again."
+            : ""
+        }
          Made by <strong>camwooloo</strong>.`,
         `<button class="pill" id="set-site">camwooloo.com</button>`
       )}
